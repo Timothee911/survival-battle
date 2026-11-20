@@ -704,49 +704,94 @@ function drawAmbientCyber() {
   ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
 }
 
-// ---------- DIMENSION 3 : roche volcanique fissurée de lave ----------
-let lavaGlowCanvas = null;
-function drawFloorMagma() {
-  let W = canvas.width, H = canvas.height, cx = W / 2, cy = H / 2, rnd = seededRand(666), C = 72;
-  // Lave sous les plaques (visible dans les fissures)
-  let lg = ctx.createRadialGradient(cx, cy, 50, cx, cy, Math.max(W, H) * 0.7); lg.addColorStop(0, '#ffb020'); lg.addColorStop(0.5, '#f05a0a'); lg.addColorStop(1, '#8a1a05');
-  ctx.fillStyle = lg; ctx.fillRect(0, 0, W, H);
-  // Grille de points déformés → plaques de basalte irrégulières
-  let cols = Math.ceil(W / C) + 2, rows = Math.ceil(H / C) + 2, P = [];
-  for (let i = 0; i < cols; i++) { P.push([]); for (let j = 0; j < rows; j++) P[i].push([(i - 0.5) * C + (rnd() - 0.5) * C * 0.6, (j - 0.5) * C + (rnd() - 0.5) * C * 0.6]); }
-  // Calque séparé : lueur des fissures (pulsera en jeu)
-  lavaGlowCanvas = document.createElement('canvas'); lavaGlowCanvas.width = W; lavaGlowCanvas.height = H;
-  let gc = lavaGlowCanvas.getContext('2d'); gc.strokeStyle = '#ffc040'; gc.lineWidth = 2.5; gc.shadowBlur = 7; gc.shadowColor = '#ff7a00'; gc.beginPath();
-  for (let i = 0; i < cols - 1; i++) for (let j = 0; j < rows - 1; j++) { let a = P[i][j]; gc.moveTo(a[0], a[1]); gc.lineTo(P[i + 1][j][0], P[i + 1][j][1]); gc.moveTo(a[0], a[1]); gc.lineTo(P[i][j + 1][0], P[i][j + 1][1]); }
-  gc.stroke();
-  gc.globalCompositeOperation = 'destination-out'; gc.shadowBlur = 0; gc.fillStyle = '#000'; // pas de lueur sous les bâtiments, rochers et la base
-  for (let b of buildings) gc.fillRect(b.x - 6, b.y - 6, b.w + 12, b.h + 12);
-  for (let sc of scenery) { gc.beginPath(); gc.arc(sc.x, sc.y, sc.r + 8, 0, Math.PI * 2); gc.fill(); }
-  gc.fillRect(baseCentral.x - 8, baseCentral.y - 8, baseCentral.w + 16, baseCentral.h + 16);
-  let basalt = ['#2a1a16', '#241511', '#2f1d18', '#1f120f', '#33201a'];
-  for (let i = 0; i < cols - 1; i++) for (let j = 0; j < rows - 1; j++) {
-    let q = [P[i][j], P[i + 1][j], P[i + 1][j + 1], P[i][j + 1]];
-    let mx = (q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4, my = (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4;
-    let gap = 2.5 + rnd() * 2.5, shrink = pt => { let dx = pt[0] - mx, dy = pt[1] - my, d = Math.hypot(dx, dy) || 1; return [pt[0] - dx / d * gap, pt[1] - dy / d * gap]; };
-    let s = q.map(shrink);
-    let heat = Math.max(0, 1 - Math.hypot(mx - cx, my - cy) / (Math.max(W, H) * 0.6));
-    let base = basalt[Math.floor(rnd() * basalt.length)];
-    ctx.fillStyle = base; ctx.beginPath(); ctx.moveTo(s[0][0], s[0][1]); for (let k = 1; k < 4; k++) ctx.lineTo(s[k][0], s[k][1]); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(s[3][0], s[3][1]); ctx.lineTo(s[0][0], s[0][1]); ctx.lineTo(s[1][0], s[1][1]); ctx.stroke(); // arête éclairée
-    ctx.strokeStyle = `rgba(255, 90, 20, ${0.15 + heat * 0.25})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(s[1][0], s[1][1]); ctx.lineTo(s[2][0], s[2][1]); ctx.lineTo(s[3][0], s[3][1]); ctx.stroke(); // bord chauffé
-    for (let k = 0; k < 5; k++) circ(mx + (rnd() - 0.5) * C * 0.6, my + (rnd() - 0.5) * C * 0.6, 0.8 + rnd() * 1.4, rnd() < 0.5 ? '#3d2620' : '#160b09');
-    if (rnd() < 0.12) { ctx.strokeStyle = 'rgba(255, 140, 40, 0.55)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(mx - 10, my - 6); ctx.lineTo(mx - 2, my + 1); ctx.lineTo(mx + 8, my - 3); ctx.lineTo(mx + 12, my + 6); ctx.stroke(); } // micro-fissure
-  }
-  // Cendres
-  for (let i = 0; i < (W * H) / 2500; i++) circ(rnd() * W, rnd() * H, 0.6 + rnd(), 'rgba(160, 150, 140, 0.25)');
-  // Fumée sombre sur les bords
-  for (let i = 0; i < 12; i++) { let a = rnd() * Math.PI * 2; softBlob(cx + Math.cos(a) * W * 0.55, cy + Math.sin(a) * H * 0.55, 200 + rnd() * 200, 'rgba(0,0,0,1)', 0.5); }
+// ---------- DIMENSION 3 : terre volcanique traversée de rivières de lave ----------
+let magmaRivers = [];
+function chaikin(pts, it) {
+  for (let k = 0; k < it; k++) { let o = [pts[0]]; for (let i = 0; i < pts.length - 1; i++) { let a = pts[i], b = pts[i + 1]; o.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]); } o.push(pts[pts.length - 1]); pts = o; }
+  return pts;
 }
-// Fissures qui pulsent + braises qui s'envolent (animé)
+function pushAway(pts, cx, cy, R) { for (let p of pts) { let dx = p[0] - cx, dy = p[1] - cy, d = Math.hypot(dx, dy); if (d < R) { if (d < 1) { dx = 1; dy = 0; d = 1; } p[0] = cx + dx / d * R; p[1] = cy + dy / d * R; } } }
+function drawFloorMagma() {
+  let W = canvas.width, H = canvas.height, cx = W / 2, cy = H / 2, rnd = seededRand(777);
+  // Sol de roche volcanique sombre
+  let g = ctx.createRadialGradient(cx, cy, 50, cx, cy, Math.max(W, H) * 0.75); g.addColorStop(0, '#2a1c17'); g.addColorStop(1, '#120c0a');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 70; i++) softBlob(rnd() * W, rnd() * H, 50 + rnd() * 160, rnd() < 0.5 ? '#3a2820' : '#070404', 0.45);
+  for (let i = 0; i < (W * H) / 700; i++) { let c = rnd(); circ(rnd() * W, rnd() * H, 0.5 + rnd() * 1.3, c < 0.4 ? '#3b2a23' : (c < 0.8 ? '#0b0705' : '#4a3a32')); } // grain de la roche
+
+  // Rivières de lave qui contournent la base et les bâtiments
+  let RB = baseCentral.w * 0.75 + 95;
+  let defs = [[[-80, H * 0.18], [W + 80, H * 0.9]], [[W * 0.78, -80], [W * 0.62, H + 80]]];
+  magmaRivers = [];
+  for (let d of defs) {
+    let a = d[0], b = d[1], pts = [], n = 14, amp = 60 + rnd() * 50, ph = rnd() * 6;
+    for (let i = 0; i <= n; i++) { let t = i / n, x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t, nx = -(b[1] - a[1]), ny = b[0] - a[0], nl = Math.hypot(nx, ny), m = Math.sin(t * Math.PI * 2.2 + ph) * amp; pts.push([x + nx / nl * m, y + ny / nl * m]); }
+    for (let pass = 0; pass < 3; pass++) {
+      pushAway(pts, cx, cy, RB);
+      for (let bd of buildings) pushAway(pts, bd.x + bd.w / 2, bd.y + bd.h / 2, Math.max(bd.w, bd.h) * 0.72 + 40);
+      for (let sc of scenery) pushAway(pts, sc.x, sc.y, sc.r + 40);
+    }
+    pts = chaikin(pts, 3);
+    magmaRivers.push({ pts: pts, w: 30 + rnd() * 10 });
+  }
+  let strokeRiver = (rv, w, col, alpha) => { ctx.globalAlpha = alpha == null ? 1 : alpha; ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(rv.pts[0][0], rv.pts[0][1]); for (let p of rv.pts) ctx.lineTo(p[0], p[1]); ctx.stroke(); ctx.globalAlpha = 1; };
+  for (let rv of magmaRivers) for (let i = 0; i < rv.pts.length; i += 6) softBlob(rv.pts[i][0], rv.pts[i][1], 120, '#ff5a00', 0.07); // chaleur sur le sol
+  for (let rv of magmaRivers) { strokeRiver(rv, rv.w + 46, '#0a0503', 0.55); strokeRiver(rv, rv.w + 22, '#2b0f07'); }    // berges brûlées
+  for (let rv of magmaRivers) { ctx.shadowBlur = 25; ctx.shadowColor = '#ff4d00'; strokeRiver(rv, rv.w + 8, '#b4320a'); ctx.shadowBlur = 0; } // bord incandescent
+  for (let rv of magmaRivers) { strokeRiver(rv, rv.w, '#f05a0a'); strokeRiver(rv, rv.w * 0.62, '#fb923c'); strokeRiver(rv, rv.w * 0.28, '#fde68a', 0.8); } // lave
+  // Croûtes refroidies qui flottent
+  for (let rv of magmaRivers) for (let i = 4; i < rv.pts.length - 4; i += 5) {
+    if (rnd() < 0.45) continue;
+    let p = rv.pts[i], s = 4 + rnd() * 6, a = rnd() * 6;
+    ctx.fillStyle = '#3b1a10'; ctx.strokeStyle = '#ff9a3c'; ctx.lineWidth = 1; ctx.beginPath();
+    for (let k = 0; k < 5; k++) { let aa = a + k * 1.26, rr = s * (0.6 + rnd() * 0.5); let x = p[0] + (rnd() - 0.5) * rv.w * 0.5 + Math.cos(aa) * rr, y = p[1] + (rnd() - 0.5) * rv.w * 0.5 + Math.sin(aa) * rr; if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  let nearRiver = (x, y, m) => magmaRivers.some(rv => rv.pts.some(p => Math.hypot(p[0] - x, p[1] - y) < rv.w / 2 + m));
+  let free = (x, y, m) => !nearRiver(x, y, m) && Math.hypot(x - cx, y - cy) > RB - 20 && !buildings.some(b => x > b.x - m && x < b.x + b.w + m && y > b.y - m && y < b.y + b.h + m);
+  // Cratères calcinés
+  for (let i = 0; i < 7; i++) { let x = rnd() * W, y = rnd() * H, r = 18 + rnd() * 22; if (!free(x, y, r + 10)) continue; circ(x, y, r + 4, '#0a0605'); circ(x, y, r, '#1c120f'); softBlob(x, y, r * 0.8, '#000000', 0.6); ctx.strokeStyle = 'rgba(255,120,40,0.25)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, r + 2, 3.6, 5.6); ctx.stroke(); }
+  // Rochers volcaniques
+  for (let i = 0; i < 45; i++) {
+    let x = rnd() * W, y = rnd() * H, s = 5 + rnd() * 11; if (!free(x, y, s + 6)) continue;
+    let pts = []; for (let k = 0; k < 7; k++) { let a = k / 7 * Math.PI * 2, r = s * (0.7 + rnd() * 0.4); pts.push([x + Math.cos(a) * r, y + Math.sin(a) * r * 0.8]); }
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); pts.forEach((p, k) => k ? ctx.lineTo(p[0] + 3, p[1] + 3) : ctx.moveTo(p[0] + 3, p[1] + 3)); ctx.closePath(); ctx.fill();
+    let rg = ctx.createLinearGradient(x - s, y - s, x + s, y + s); rg.addColorStop(0, '#5b4a42'); rg.addColorStop(1, '#1f1714');
+    ctx.fillStyle = rg; ctx.beginPath(); pts.forEach((p, k) => k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); ctx.fill();
+  }
+  // Éclats d'obsidienne
+  for (let i = 0; i < 16; i++) {
+    let x = rnd() * W, y = rnd() * H; if (!free(x, y, 20)) continue;
+    for (let k = 0; k < 3 + Math.floor(rnd() * 3); k++) {
+      let a = -Math.PI / 2 + (rnd() - 0.5) * 1.6, l = 8 + rnd() * 14, bx = x + (rnd() - 0.5) * 14, by = y + (rnd() - 0.5) * 8, w = 3 + rnd() * 3;
+      let tx = bx + Math.cos(a) * l, ty = by + Math.sin(a) * l;
+      ctx.fillStyle = '#0b0a12'; ctx.beginPath(); ctx.moveTo(bx - w, by); ctx.lineTo(tx, ty); ctx.lineTo(bx + w, by); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(167, 139, 250, 0.55)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(bx - w * 0.6, by); ctx.lineTo(tx, ty); ctx.stroke();
+    }
+  }
+  // Dépôts de soufre
+  for (let i = 0; i < 10; i++) { let x = rnd() * W, y = rnd() * H; if (!free(x, y, 16)) continue; for (let k = 0; k < 14; k++) circ(x + (rnd() - 0.5) * 22, y + (rnd() - 0.5) * 16, 0.8 + rnd() * 1.8, rnd() < 0.6 ? '#d9c94a' : '#a3962f'); circ(x, y, 3, '#1a1208'); }
+  // Plateforme de basalte sous la base
+  let R = RB - 30;
+  circ(cx + 6, cy + 6, R + 4, 'rgba(0,0,0,0.5)'); circ(cx, cy, R + 4, '#0d0806');
+  let pg = ctx.createRadialGradient(cx - R * 0.3, cy - R * 0.3, 10, cx, cy, R); pg.addColorStop(0, '#3a2b25'); pg.addColorStop(1, '#1d1411');
+  ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#0d0806'; ctx.lineWidth = 2; ctx.beginPath(); for (let k = 0; k < 8; k++) { let a = k / 8 * Math.PI * 2 + 0.2; ctx.moveTo(cx + Math.cos(a) * (baseCentral.w * 0.72), cy + Math.sin(a) * (baseCentral.w * 0.72)); ctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); } ctx.stroke();
+  ctx.shadowBlur = 10; ctx.shadowColor = '#ff5a00'; ctx.strokeStyle = 'rgba(255, 120, 40, 0.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, R - 6, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0;
+  // Fumée sombre sur les bords
+  for (let i = 0; i < 12; i++) { let a = rnd() * Math.PI * 2; softBlob(cx + Math.cos(a) * W * 0.58, cy + Math.sin(a) * H * 0.58, 200 + rnd() * 200, 'rgba(0,0,0,1)', 0.45); }
+}
+// Lave qui coule + braises qui s'envolent (animé)
 function drawAmbientMagma() {
   let t = Date.now(), W = canvas.width, H = canvas.height;
-  if (lavaGlowCanvas) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.14 + Math.sin(t * 0.0015) * 0.1; ctx.drawImage(lavaGlowCanvas, 0, 0); }
   ctx.globalCompositeOperation = 'lighter';
+  for (let rv of magmaRivers) {
+    let n = rv.pts.length, off = (t * 0.004) % 9;
+    for (let k = 0; k < n - 10; k += 9) {
+      let pos = k + off, i = Math.floor(pos), f = pos - i, a = rv.pts[i], b = rv.pts[i + 1];
+      ctx.globalAlpha = 0.22 + 0.12 * Math.sin(t * 0.004 + k); circ(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, rv.w * 0.32, '#fff1b8');
+    }
+  }
   for (let i = 0; i < 45; i++) {
     let sp = 0.03 + (i % 7) * 0.008, y = H + 20 - ((t * sp + i * 137) % (H + 40)), x = ((i * 389) % W) + Math.sin(t * 0.002 + i) * 14;
     let life = 1 - (H + 20 - y) / (H + 40);
@@ -869,25 +914,128 @@ function drawMinimap() {
   ctx.fillStyle = player.color; ctx.shadowBlur = 5; ctx.shadowColor = player.color; ctx.beginPath(); ctx.arc(mapX + player.x * sX, mapY + player.y * sY, 3.5, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
 }
 
+// =====================================================
+// 🧭 HUD — vie, base, infos, arme, esquive, combo
+// =====================================================
+let hudTrail = { hp: 1, base: 1 };
+function hudPanel(x, y, w, h, r, accent) {
+  ctx.fillStyle = 'rgba(8, 12, 28, 0.9)'; ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill();
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.22)'; ctx.lineWidth = 1.5; ctx.stroke();
+  if (accent) { ctx.fillStyle = accent; ctx.beginPath(); ctx.roundRect(x, y + 10, 3, h - 20, 1.5); ctx.fill(); }
+}
+function hudBar(x, y, w, h, ratio, trail, col, ticks) {
+  ratio = Math.max(0, Math.min(1, ratio));
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)'; ctx.beginPath(); ctx.roundRect(x, y, w, h, h / 2); ctx.fill();
+  ctx.save(); ctx.beginPath(); ctx.roundRect(x, y, w, h, h / 2); ctx.clip();
+  if (trail > ratio) { ctx.fillStyle = 'rgba(255, 255, 255, 0.75)'; ctx.fillRect(x, y, w * trail, h); } // dégâts récents
+  let g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, shadeHex(col, 45)); g.addColorStop(0.5, col); g.addColorStop(1, shadeHex(col, -40));
+  ctx.fillStyle = g; ctx.fillRect(x, y, w * ratio, h);
+  ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(x, y, w * ratio, h * 0.35); // reflet
+  if (ticks) { ctx.fillStyle = 'rgba(0,0,0,0.35)'; for (let i = 1; i < ticks; i++) ctx.fillRect(x + w * i / ticks - 0.75, y, 1.5, h); }
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(x, y, w, h, h / 2); ctx.stroke();
+}
+function hudText(txt, x, y, font, col, align) { ctx.font = font; ctx.textAlign = align || 'left'; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText(txt, x + 1, y + 1.5); ctx.fillStyle = col; ctx.fillText(txt, x, y); ctx.textAlign = 'left'; }
+function hudEmblem(x, y, r) {
+  let c = player.color, cls = c === '#f87171' ? 'tank' : (c === '#22d3ee' ? 'eng' : 'scout');
+  let g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 2, x, y, r); g.addColorStop(0, shadeHex(c, 40)); g.addColorStop(1, shadeHex(c, -70));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#ffffff'; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  if (cls === 'scout') { // double chevron (vitesse)
+    ctx.lineWidth = 3.5; ctx.beginPath(); ctx.moveTo(x - 8, y - 7); ctx.lineTo(x - 1, y); ctx.lineTo(x - 8, y + 7); ctx.moveTo(x + 1, y - 7); ctx.lineTo(x + 8, y); ctx.lineTo(x + 1, y + 7); ctx.stroke();
+  } else if (cls === 'tank') { // bouclier
+    ctx.beginPath(); ctx.moveTo(x, y - 10); ctx.lineTo(x + 8.5, y - 6.5); ctx.quadraticCurveTo(x + 8, y + 5, x, y + 10); ctx.quadraticCurveTo(x - 8, y + 5, x - 8.5, y - 6.5); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = shadeHex(c, -60); ctx.fillRect(x - 1.5, y - 6, 3, 11); ctx.fillRect(x - 5, y - 2.5, 10, 3);
+  } else { // engrenage
+    ctx.beginPath(); for (let i = 0; i < 16; i++) { let a = i / 16 * Math.PI * 2, rr = i % 2 ? 7 : 10; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } ctx.closePath(); ctx.fill();
+    ctx.fillStyle = shadeHex(c, -60); ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
+  }
+}
+function hudWeaponIcon(x, y, w) { // silhouette de l'arme, centrée en (x, y)
+  ctx.fillStyle = '#e2e8f0';
+  if (w === 'shotgun') { ctx.fillRect(x - 26, y - 2, 14, 7); ctx.fillRect(x - 13, y - 4, 12, 8); ctx.fillRect(x - 1, y - 3, 28, 4); ctx.fillStyle = '#c2884a'; ctx.fillRect(x + 4, y + 1, 12, 4); }
+  else if (w === 'rocket') { ctx.fillRect(x - 26, y - 5, 48, 10); ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.moveTo(x + 22, y - 5); ctx.lineTo(x + 30, y); ctx.lineTo(x + 22, y + 5); ctx.fill(); ctx.fillStyle = '#e2e8f0'; ctx.fillRect(x - 8, y + 5, 5, 7); }
+  else { ctx.fillRect(x - 12, y - 6, 26, 7); ctx.fillRect(x - 12, y, 8, 11); ctx.fillStyle = '#94a3b8'; ctx.fillRect(x + 10, y - 5, 4, 3); }
+}
+
 function drawHUD() {
-  ctx.save(); ctx.translate(20, 20);
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.8)'; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(280,0); ctx.lineTo(260,45); ctx.lineTo(0,45); ctx.closePath(); ctx.fill(); ctx.strokeStyle = '#334155'; ctx.lineWidth = 2; ctx.stroke();
-  let pC = CLASSES[player.color] || CLASSES['#4ade80']; ctx.fillStyle = player.color; ctx.font = '900 14px system-ui'; ctx.fillText(`[ ${pC.name} ]`, 15, 18); ctx.fillStyle = '#cbd5e1'; ctx.font = 'bold 10px system-ui'; ctx.fillText(pC.boost, 15, 33);
-  let hpRatio = Math.max(0, player.hp) / getPlayerMaxHp(); ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.beginPath(); ctx.moveTo(130, 15); ctx.lineTo(250, 15); ctx.lineTo(240, 29); ctx.lineTo(120, 29); ctx.fill(); ctx.fillStyle = '#22c55e'; ctx.shadowBlur = 10; ctx.shadowColor = '#22c55e'; ctx.beginPath(); ctx.moveTo(130, 15); ctx.lineTo(130 + 120*hpRatio, 15); ctx.lineTo(120 + 120*hpRatio, 29); ctx.lineTo(120, 29); ctx.fill(); ctx.shadowBlur = 0;
+  ctx.save();
+  let maxHp = getPlayerMaxHp(), hp = Math.max(0, player.hp), hpR = hp / maxHp, baseR = Math.max(0, baseCentral.hp) / baseCentral.maxHp;
+  hudTrail.hp = hudTrail.hp > hpR ? Math.max(hpR, hudTrail.hp - 0.006) : hpR;
+  hudTrail.base = hudTrail.base > baseR ? Math.max(baseR, hudTrail.base - 0.004) : baseR;
+  let pC = CLASSES[player.color] || CLASSES['#4ade80'];
+  let dimCol = currentDimension === 1 ? '#38bdf8' : (currentDimension === 2 ? '#e879f9' : '#fb923c');
+  let dimName = currentDimension === 1 ? 'Terre' : (currentDimension === 2 ? 'Cyber' : 'Magma');
+  let baseName = currentDimension === 1 ? 'BASE' : (currentDimension === 2 ? 'CITADELLE' : 'FORGE');
+  let X = 16, Y = 16, PW = 330;
 
-  ctx.translate(0, 55);
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.8)'; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(240,0); ctx.lineTo(220,30); ctx.lineTo(0,30); ctx.closePath(); ctx.fill(); ctx.strokeStyle = '#334155'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = currentDimension === 1 ? '#38bdf8' : (currentDimension === 2 ? '#e879f9' : '#facc15'); ctx.font = 'bold 14px system-ui'; ctx.fillText(currentDimension === 1 ? 'BASE' : (currentDimension===2?'CITADELLE':'FORGE'), 12, 20);
-  let baseRatio = Math.max(0, baseCentral.hp) / baseCentral.maxHp; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.beginPath(); ctx.moveTo(90, 8); ctx.lineTo(225, 8); ctx.lineTo(215, 22); ctx.lineTo(80, 22); ctx.fill();
-  let baseBarCol = currentDimension === 1 ? '#0ea5e9' : (currentDimension===2 ? '#d946ef' : '#ea580c'); ctx.fillStyle = baseBarCol; ctx.shadowBlur = 10; ctx.shadowColor = baseBarCol; ctx.beginPath(); ctx.moveTo(90, 8); ctx.lineTo(90 + 135*baseRatio, 8); ctx.lineTo(80 + 135*baseRatio, 22); ctx.lineTo(80, 22); ctx.fill(); ctx.shadowBlur = 0;
+  // ---- Bloc principal : classe + vie + base ----
+  hudPanel(X, Y, PW, 96, 14, player.color);
+  hudEmblem(X + 38, Y + 40, 24);
+  hudText(pC.name, X + 72, Y + 26, '900 15px system-ui', player.color);
+  hudText(`${Math.ceil(hp)} / ${maxHp}`, X + PW - 14, Y + 26, 'bold 13px system-ui', '#f8fafc', 'right');
+  let hpCol = hpR > 0.6 ? '#22c55e' : (hpR > 0.3 ? '#facc15' : '#ef4444');
+  hudBar(X + 72, Y + 33, PW - 86, 15, hpR, hudTrail.hp, hpCol, 10);
+  hudText(`🏰 ${baseName}`, X + 72, Y + 68, 'bold 11px system-ui', '#cbd5e1');
+  hudText(`${Math.ceil(Math.max(0, baseCentral.hp))} / ${Math.round(baseCentral.maxHp)}`, X + PW - 14, Y + 68, 'bold 11px system-ui', '#cbd5e1', 'right');
+  hudBar(X + 72, Y + 74, PW - 86, 9, baseR, hudTrail.base, dimCol, 0);
+  hudText(pC.boost, X + 14, Y + 89, '600 9px system-ui', '#64748b');
 
-  ctx.translate(0, 50); ctx.shadowColor = '#000'; ctx.shadowBlur = 4; ctx.font = 'bold 16px system-ui';
-  ctx.fillStyle = currentDimension === 1 ? '#a7f3d0' : (currentDimension === 2 ? '#f0abfc' : '#fef08a'); ctx.fillText(`🌌 Dimension : ${currentDimension === 1 ? '1 (Terre)' : (currentDimension===2 ? '2 (Cyber)' : '3 (Magma)')}`, 5, 0);
-  ctx.fillStyle = '#FFF'; ctx.font = 'bold 15px system-ui'; ctx.fillText(`✨ Niveau : ${getLevelInfo().level} / ${MAX_LEVEL}`, 5, 25); ctx.fillText(`💰 Score : ${score}`, 5, 50); ctx.fillText(`🌊 Vague : ${currentWave} / ${maxWaves}`, 5, 75);
-  let wName = player.currentWeapon === 'pistol' ? 'Pistolet' : (player.currentWeapon === 'shotgun' ? `Pompe (Niv.${upgrades.shotgunLevel})` : `Roquettes (Niv.${upgrades.rocketLevel})`); ctx.fillStyle = '#facc15'; ctx.fillText(`🔫 Arme [E] : ${wName}`, 5, 105);
-  let dStatus = player.dashCooldown === 0 ? 'PRÊT [ESPACE]' : `RECHARGE (${Math.ceil(player.dashCooldown / 60)}s)`; ctx.fillStyle = player.dashCooldown === 0 ? '#4ade80' : '#94a3b8'; ctx.fillText(`⚡ Esquive : ${dStatus}`, 5, 130);
+  // ---- Grille d'infos 2 × 2 ----
+  let lvl = getLevelInfo(), alive = enemies.length;
+  let waveProg = enemiesTotalInWave > 0 ? Math.max(0, Math.min(1, (enemiesSpawnedInWave - alive) / enemiesTotalInWave)) : 0;
+  let cw = (PW - 8) / 2, ch = 44, gy = Y + 104;
+  let cells = [
+    { label: 'DIMENSION', value: `${currentDimension} · ${dimName}`, col: dimCol },
+    { label: 'VAGUE', value: `${currentWave} / ${maxWaves}`, col: '#f8fafc', bar: waveProg, barCol: '#38bdf8' },
+    { label: 'SCORE', value: score.toLocaleString('fr-FR'), col: '#facc15' },
+    { label: 'NIVEAU', value: `${lvl.level}`, col: '#c084fc', bar: lvl.level === MAX_LEVEL ? 1 : lvl.currentXP / lvl.requiredXP, barCol: '#a855f7' }
+  ];
+  cells.forEach((c, i) => {
+    let cx = X + (i % 2) * (cw + 8), cy = gy + Math.floor(i / 2) * (ch + 8);
+    hudPanel(cx, cy, cw, ch, 10);
+    hudText(c.label, cx + 12, cy + 15, '800 9px system-ui', '#64748b');
+    hudText(c.value, cx + 12, cy + 33, '900 16px system-ui', c.col);
+    if (c.bar != null) hudBar(cx + cw - 58, cy + 26, 46, 6, c.bar, 0, c.barCol, 0);
+  });
 
-  if (comboCount > 1) { ctx.shadowColor = '#f97316'; ctx.shadowBlur = 10; ctx.fillStyle = '#f97316'; ctx.font = 'bold 22px system-ui, sans-serif'; ctx.fillText(`🔥 COMBO x${getMultiplier()} (${comboCount} kills)`, 5, 165); }
+  // ---- Combo ----
+  if (comboCount > 1) {
+    let cy = gy + 2 * (ch + 8), pulse = 1 + Math.max(0, comboTimer - 140) * 0.02;
+    hudPanel(X, cy, PW, 40, 12, '#f97316');
+    ctx.save(); ctx.translate(X + 16, cy + 27); ctx.scale(pulse, pulse);
+    hudText(`🔥 COMBO x${getMultiplier()}`, 0, 0, '900 18px system-ui', '#fb923c'); ctx.restore();
+    hudText(`${comboCount} éliminations`, X + PW - 14, cy + 20, 'bold 11px system-ui', '#fed7aa', 'right');
+    hudBar(X + PW - 120, cy + 26, 106, 5, comboTimer / 150, 0, '#f97316', 0);
+  }
+
+  // ---- En bas à gauche : arme + esquive ----
+  let by = canvas.height - 86;
+  let wN = player.currentWeapon === 'pistol' ? 'PISTOLET' : (player.currentWeapon === 'shotgun' ? 'POMPE' : 'ROQUETTES');
+  let wL = player.currentWeapon === 'shotgun' ? upgrades.shotgunLevel : (player.currentWeapon === 'rocket' ? upgrades.rocketLevel : 0);
+  hudPanel(X, by, 232, 70, 14, '#facc15');
+  hudWeaponIcon(X + 46, by + 35, player.currentWeapon);
+  hudText(wN, X + 90, by + 30, '900 15px system-ui', '#f8fafc');
+  if (player.currentWeapon !== 'pistol') for (let i = 0; i < 3; i++) { ctx.fillStyle = i < wL ? '#facc15' : 'rgba(148,163,184,0.3)'; ctx.beginPath(); ctx.roundRect(X + 90 + i * 16, by + 38, 12, 5, 2); ctx.fill(); }
+  else hudText('Munitions illimitées', X + 90, by + 45, '600 10px system-ui', '#94a3b8');
+  ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.beginPath(); ctx.roundRect(X + 90, by + 50, 22, 15, 4); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1; ctx.stroke();
+  hudText('E', X + 101, by + 61, 'bold 10px system-ui', '#f8fafc', 'center'); hudText('Changer', X + 118, by + 61, '600 10px system-ui', '#94a3b8');
+
+  let dx = X + 240, dCd = CLASSES[player.color].dash, ready = player.dashCooldown <= 0;
+  hudPanel(dx, by, 70, 70, 14);
+  let ringR = 22, ccx = dx + 35, ccy = by + 31;
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(ccx, ccy, ringR, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = ready ? '#4ade80' : '#38bdf8'; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(ccx, ccy, ringR, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (ready ? 1 : 1 - player.dashCooldown / dCd)); ctx.stroke();
+  if (ready) { ctx.fillStyle = 'rgba(74, 222, 128, 0.15)'; ctx.beginPath(); ctx.arc(ccx, ccy, ringR - 4, 0, Math.PI * 2); ctx.fill(); }
+  ctx.fillStyle = ready ? '#bbf7d0' : '#94a3b8'; ctx.beginPath(); ctx.moveTo(ccx + 3, ccy - 12); ctx.lineTo(ccx - 7, ccy + 2); ctx.lineTo(ccx - 1, ccy + 2); ctx.lineTo(ccx - 4, ccy + 12); ctx.lineTo(ccx + 7, ccy - 2); ctx.lineTo(ccx + 1, ccy - 2); ctx.closePath(); ctx.fill(); // éclair
+  hudText(ready ? 'ESPACE' : `${(player.dashCooldown / 60).toFixed(1)}s`, ccx, by + 64, 'bold 9px system-ui', ready ? '#4ade80' : '#94a3b8', 'center');
+
+  // ---- Alerte vie basse : bords de l'écran qui pulsent en rouge ----
+  if (hpR < 0.3) {
+    let a = (0.3 - hpR) / 0.3 * (0.35 + Math.sin(Date.now() * 0.008) * 0.15);
+    ctx.strokeStyle = `rgba(239, 68, 68, ${a})`; ctx.lineWidth = 18; ctx.strokeRect(0, 0, canvas.width, canvas.height);
+  }
   ctx.restore();
 }
 
