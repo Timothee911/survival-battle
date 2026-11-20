@@ -557,6 +557,204 @@ function update() {
 
 // --- DESSIN RENDERERS ---
 
+// =====================================================
+// 🌍 SOLS DES DIMENSIONS (dessinés une seule fois dans le cache du décor)
+// =====================================================
+function seededRand(seed) {
+  return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+function softBlob(x, y, r, col, alpha) {
+  let g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.globalAlpha = alpha; ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.globalAlpha = 1;
+}
+function quadPoint(p0, p1, p2, t) { let u = 1 - t; return [u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0], u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1]]; }
+
+// ---------- DIMENSION 1 : prairie, chemins de terre, place pavée ----------
+function drawFloorEarth() {
+  let W = canvas.width, H = canvas.height, cx = W / 2, cy = H / 2, rnd = seededRand(1337);
+  let g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#3f7d35'); g.addColorStop(0.5, '#468a3a'); g.addColorStop(1, '#376e2f');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // Nuances d'herbe (zones plus claires / plus foncées)
+  let shades = ['#5a9c45', '#2f6428', '#4f9140', '#2a5a24', '#6aa84f'];
+  for (let i = 0; i < 55; i++) softBlob(rnd() * W, rnd() * H, 60 + rnd() * 170, shades[i % shades.length], 0.35);
+  // Touffes d'herbe
+  let blades = ['#2d6a27', '#5fa64a', '#3c8233', '#78b85a'];
+  ctx.lineCap = 'round';
+  for (let i = 0; i < (W * H) / 1100; i++) {
+    let x = rnd() * W, y = rnd() * H, n = 3 + Math.floor(rnd() * 3);
+    ctx.strokeStyle = blades[Math.floor(rnd() * blades.length)]; ctx.lineWidth = 1.3; ctx.beginPath();
+    for (let b = 0; b < n; b++) { let a = -Math.PI / 2 + (b - n / 2) * 0.35 + (rnd() - 0.5) * 0.3, l = 4 + rnd() * 6; ctx.moveTo(x + b * 1.5, y); ctx.lineTo(x + b * 1.5 + Math.cos(a) * l, y + Math.sin(a) * l); }
+    ctx.stroke();
+  }
+  // Petites fleurs
+  let petals = ['#fef9c3', '#fde047', '#f9a8d4', '#93c5fd', '#ffffff'];
+  for (let i = 0; i < (W * H) / 9000; i++) {
+    let x = rnd() * W, y = rnd() * H, c = petals[Math.floor(rnd() * petals.length)];
+    for (let p = 0; p < 5; p++) { let a = p * Math.PI * 2 / 5; circ(x + Math.cos(a) * 2.2, y + Math.sin(a) * 2.2, 1.6, c); }
+    circ(x, y, 1.2, '#f59e0b');
+  }
+  // Chemins de terre vers la base
+  let ends = [[cx + (rnd() - 0.5) * W * 0.2, -60], [cx + (rnd() - 0.5) * W * 0.2, H + 60], [-60, cy + (rnd() - 0.5) * H * 0.2], [W + 60, cy + (rnd() - 0.5) * H * 0.2]];
+  let paths = ends.map(e => { let mx = (cx + e[0]) / 2 + (rnd() - 0.5) * 160, my = (cy + e[1]) / 2 + (rnd() - 0.5) * 160; return [[cx, cy], [mx, my], e]; });
+  let strokePaths = (w, col) => { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round'; for (let p of paths) { ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]); ctx.quadraticCurveTo(p[1][0], p[1][1], p[2][0], p[2][1]); ctx.stroke(); } };
+  strokePaths(62, 'rgba(40, 60, 25, 0.45)'); strokePaths(54, '#7a5a36'); strokePaths(44, '#9a7548'); strokePaths(20, 'rgba(176, 140, 94, 0.55)');
+  for (let p of paths) for (let i = 0; i < 160; i++) { // cailloux et ornières
+    let pt = quadPoint(p[0], p[1], p[2], rnd()), ox = (rnd() - 0.5) * 40, oy = (rnd() - 0.5) * 40;
+    if (rnd() < 0.7) oval(pt[0] + ox, pt[1] + oy, 1 + rnd() * 2.2, 0.8 + rnd() * 1.6, rnd() < 0.5 ? '#6b4f30' : '#c4a273');
+    else oval(pt[0] + ox, pt[1] + oy, 2 + rnd() * 2, 1.5 + rnd() * 1.5, '#8d8a80');
+  }
+  // Place pavée autour de la base
+  let R = baseCentral.w * 0.75 + 46;
+  circ(cx, cy, R + 6, '#5b5446');
+  circ(cx, cy, R, '#8a8274');
+  for (let ring = 0; ring < 6; ring++) {
+    let rr = R - 8 - ring * 13; if (rr < 10) break;
+    let n = Math.max(6, Math.floor(rr * Math.PI * 2 / 16));
+    for (let i = 0; i < n; i++) {
+      let a = (i + (ring % 2) * 0.5) / n * Math.PI * 2, x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
+      let tone = ['#9c9486', '#a8a093', '#8f877a', '#b3ab9d'][Math.floor(rnd() * 4)];
+      ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+      rrect(-6, -5.5, 12, 11, 3, tone); rrect(-6, -5.5, 12, 3, 2, 'rgba(255,255,255,0.12)');
+      ctx.restore();
+    }
+  }
+  ctx.strokeStyle = '#4a4438'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+}
+// Ombres de nuages qui défilent (animé, très léger)
+let cloudSprite = null;
+function drawAmbientEarth() {
+  if (!cloudSprite) {
+    cloudSprite = document.createElement('canvas'); cloudSprite.width = cloudSprite.height = 256;
+    let c = cloudSprite.getContext('2d');
+    for (let [x, y, r] of [[128, 128, 100], [80, 140, 70], [175, 120, 75], [130, 95, 65]]) { let g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, 'rgba(0,0,0,0.5)'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(0, 0, 256, 256); }
+  }
+  let W = canvas.width, H = canvas.height, t = Date.now() * 0.012;
+  ctx.globalAlpha = 0.35;
+  for (let i = 0; i < 4; i++) {
+    let size = 420 + i * 90, span = W + size * 2;
+    let x = ((t * (0.6 + i * 0.15) + i * span / 4) % span) - size, y = (H * (0.15 + i * 0.23)) % H - size / 3;
+    ctx.drawImage(cloudSprite, x, y, size, size * 0.7);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ---------- DIMENSION 2 : dalles métalliques et circuits néon ----------
+let cyberTraces = [];
+function drawFloorCyber() {
+  let W = canvas.width, H = canvas.height, cx = W / 2, cy = H / 2, rnd = seededRand(4242), T = 64;
+  ctx.fillStyle = '#07061a'; ctx.fillRect(0, 0, W, H);
+  // Dalles avec biseau, grilles d'aération et rivets
+  for (let x = 0; x < W; x += T) for (let y = 0; y < H; y += T) {
+    let v = Math.floor(rnd() * 3), tone = ['#12112b', '#151433', '#100f26'][v];
+    ctx.fillStyle = tone; ctx.fillRect(x + 1, y + 1, T - 2, T - 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(x + 1, y + 1, T - 2, 2); ctx.fillRect(x + 1, y + 1, 2, T - 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(x + 1, y + T - 3, T - 2, 2); ctx.fillRect(x + T - 3, y + 1, 2, T - 2);
+    let r = rnd();
+    if (r < 0.12) { ctx.fillStyle = '#0a0920'; ctx.fillRect(x + 14, y + 18, T - 28, T - 36); ctx.fillStyle = '#1f1d45'; for (let k = 0; k < 6; k++) ctx.fillRect(x + 16, y + 21 + k * 4, T - 32, 1.5); }
+    else if (r < 0.2) { ctx.strokeStyle = 'rgba(217,70,239,0.25)'; ctx.lineWidth = 1; ctx.strokeRect(x + 10, y + 10, T - 20, T - 20); }
+    for (let [px, py] of [[6, 6], [T - 6, 6], [6, T - 6], [T - 6, T - 6]]) circ(x + px, y + py, 1.4, '#2a2852');
+  }
+  // Pistes de circuits néon partant de la base
+  cyberTraces = [];
+  let G = 16;
+  for (let i = 0; i < 18; i++) {
+    let a = i / 18 * Math.PI * 2 + rnd() * 0.2, d0 = baseCentral.w * 0.6 + 10;
+    let x = Math.round((cx + Math.cos(a) * d0) / G) * G, y = Math.round((cy + Math.sin(a) * d0) / G) * G, pts = [[x, y]];
+    let dx = Math.sign(Math.cos(a)) || 1, dy = Math.sign(Math.sin(a)) || 1, segs = 4 + Math.floor(rnd() * 5);
+    for (let s = 0; s < segs; s++) {
+      let len = (2 + Math.floor(rnd() * 6)) * G, mode = Math.floor(rnd() * 3);
+      if (mode === 0) x += dx * len; else if (mode === 1) y += dy * len; else { x += dx * len * 0.7; y += dy * len * 0.7; }
+      pts.push([x, y]);
+    }
+    cyberTraces.push({ pts: pts, col: i % 2 ? '#22d3ee' : '#d946ef' });
+  }
+  for (let tr of cyberTraces) {
+    let line = () => { ctx.beginPath(); ctx.moveTo(tr.pts[0][0], tr.pts[0][1]); for (let p of tr.pts) ctx.lineTo(p[0], p[1]); };
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.globalAlpha = 0.18; ctx.strokeStyle = tr.col; ctx.lineWidth = 9; line(); ctx.stroke();
+    ctx.globalAlpha = 0.45; ctx.lineWidth = 3; line(); ctx.stroke();
+    ctx.globalAlpha = 0.6; ctx.strokeStyle = '#e0fbff'; ctx.lineWidth = 1; line(); ctx.stroke();
+    let e = tr.pts[tr.pts.length - 1];
+    ctx.globalAlpha = 1; ctx.shadowBlur = 12; ctx.shadowColor = tr.col; circ(e[0], e[1], 5, tr.col); ctx.shadowBlur = 0; circ(e[0], e[1], 2.2, '#07061a');
+  }
+  // Anneaux hexagonaux autour de la base
+  for (let k = 0; k < 3; k++) {
+    let rr = baseCentral.w * 0.75 + 30 + k * 34;
+    ctx.strokeStyle = k === 1 ? 'rgba(34,211,238,0.22)' : 'rgba(217,70,239,0.18)'; ctx.lineWidth = k === 1 ? 2 : 1.2; ctx.beginPath();
+    for (let i = 0; i <= 6; i++) { let a = i / 6 * Math.PI * 2 + Math.PI / 6; let px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr; if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); }
+    ctx.stroke();
+  }
+  // Halo violet général
+  softBlob(cx, cy, Math.max(W, H) * 0.55, 'rgba(126, 34, 206, 1)', 0.18);
+}
+// Impulsions de données qui parcourent les circuits (animé)
+function drawAmbientCyber() {
+  let t = Date.now() * 0.00025;
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < cyberTraces.length; i += 2) {
+    let tr = cyberTraces[i], pts = tr.pts, total = 0, segL = [];
+    for (let k = 1; k < pts.length; k++) { let l = Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]); segL.push(l); total += l; }
+    let d = ((t * 400 + i * 97) % (total + 200)); if (d > total) continue;
+    for (let k = 0; k < segL.length; k++) {
+      if (d <= segL[k]) { let f = d / segL[k], x = pts[k][0] + (pts[k + 1][0] - pts[k][0]) * f, y = pts[k][1] + (pts[k + 1][1] - pts[k][1]) * f; if (buildings.some(b => x > b.x - 4 && x < b.x + b.w + 4 && y > b.y - 4 && y < b.y + b.h + 4)) break; ctx.globalAlpha = 0.35; circ(x, y, 7, tr.col); ctx.globalAlpha = 1; circ(x, y, 2.5, '#ffffff'); break; }
+      d -= segL[k];
+    }
+  }
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+}
+
+// ---------- DIMENSION 3 : roche volcanique fissurée de lave ----------
+let lavaGlowCanvas = null;
+function drawFloorMagma() {
+  let W = canvas.width, H = canvas.height, cx = W / 2, cy = H / 2, rnd = seededRand(666), C = 72;
+  // Lave sous les plaques (visible dans les fissures)
+  let lg = ctx.createRadialGradient(cx, cy, 50, cx, cy, Math.max(W, H) * 0.7); lg.addColorStop(0, '#ffb020'); lg.addColorStop(0.5, '#f05a0a'); lg.addColorStop(1, '#8a1a05');
+  ctx.fillStyle = lg; ctx.fillRect(0, 0, W, H);
+  // Grille de points déformés → plaques de basalte irrégulières
+  let cols = Math.ceil(W / C) + 2, rows = Math.ceil(H / C) + 2, P = [];
+  for (let i = 0; i < cols; i++) { P.push([]); for (let j = 0; j < rows; j++) P[i].push([(i - 0.5) * C + (rnd() - 0.5) * C * 0.6, (j - 0.5) * C + (rnd() - 0.5) * C * 0.6]); }
+  // Calque séparé : lueur des fissures (pulsera en jeu)
+  lavaGlowCanvas = document.createElement('canvas'); lavaGlowCanvas.width = W; lavaGlowCanvas.height = H;
+  let gc = lavaGlowCanvas.getContext('2d'); gc.strokeStyle = '#ffc040'; gc.lineWidth = 2.5; gc.shadowBlur = 7; gc.shadowColor = '#ff7a00'; gc.beginPath();
+  for (let i = 0; i < cols - 1; i++) for (let j = 0; j < rows - 1; j++) { let a = P[i][j]; gc.moveTo(a[0], a[1]); gc.lineTo(P[i + 1][j][0], P[i + 1][j][1]); gc.moveTo(a[0], a[1]); gc.lineTo(P[i][j + 1][0], P[i][j + 1][1]); }
+  gc.stroke();
+  gc.globalCompositeOperation = 'destination-out'; gc.shadowBlur = 0; gc.fillStyle = '#000'; // pas de lueur sous les bâtiments, rochers et la base
+  for (let b of buildings) gc.fillRect(b.x - 6, b.y - 6, b.w + 12, b.h + 12);
+  for (let sc of scenery) { gc.beginPath(); gc.arc(sc.x, sc.y, sc.r + 8, 0, Math.PI * 2); gc.fill(); }
+  gc.fillRect(baseCentral.x - 8, baseCentral.y - 8, baseCentral.w + 16, baseCentral.h + 16);
+  let basalt = ['#2a1a16', '#241511', '#2f1d18', '#1f120f', '#33201a'];
+  for (let i = 0; i < cols - 1; i++) for (let j = 0; j < rows - 1; j++) {
+    let q = [P[i][j], P[i + 1][j], P[i + 1][j + 1], P[i][j + 1]];
+    let mx = (q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4, my = (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4;
+    let gap = 2.5 + rnd() * 2.5, shrink = pt => { let dx = pt[0] - mx, dy = pt[1] - my, d = Math.hypot(dx, dy) || 1; return [pt[0] - dx / d * gap, pt[1] - dy / d * gap]; };
+    let s = q.map(shrink);
+    let heat = Math.max(0, 1 - Math.hypot(mx - cx, my - cy) / (Math.max(W, H) * 0.6));
+    let base = basalt[Math.floor(rnd() * basalt.length)];
+    ctx.fillStyle = base; ctx.beginPath(); ctx.moveTo(s[0][0], s[0][1]); for (let k = 1; k < 4; k++) ctx.lineTo(s[k][0], s[k][1]); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(s[3][0], s[3][1]); ctx.lineTo(s[0][0], s[0][1]); ctx.lineTo(s[1][0], s[1][1]); ctx.stroke(); // arête éclairée
+    ctx.strokeStyle = `rgba(255, 90, 20, ${0.15 + heat * 0.25})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(s[1][0], s[1][1]); ctx.lineTo(s[2][0], s[2][1]); ctx.lineTo(s[3][0], s[3][1]); ctx.stroke(); // bord chauffé
+    for (let k = 0; k < 5; k++) circ(mx + (rnd() - 0.5) * C * 0.6, my + (rnd() - 0.5) * C * 0.6, 0.8 + rnd() * 1.4, rnd() < 0.5 ? '#3d2620' : '#160b09');
+    if (rnd() < 0.12) { ctx.strokeStyle = 'rgba(255, 140, 40, 0.55)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(mx - 10, my - 6); ctx.lineTo(mx - 2, my + 1); ctx.lineTo(mx + 8, my - 3); ctx.lineTo(mx + 12, my + 6); ctx.stroke(); } // micro-fissure
+  }
+  // Cendres
+  for (let i = 0; i < (W * H) / 2500; i++) circ(rnd() * W, rnd() * H, 0.6 + rnd(), 'rgba(160, 150, 140, 0.25)');
+  // Fumée sombre sur les bords
+  for (let i = 0; i < 12; i++) { let a = rnd() * Math.PI * 2; softBlob(cx + Math.cos(a) * W * 0.55, cy + Math.sin(a) * H * 0.55, 200 + rnd() * 200, 'rgba(0,0,0,1)', 0.5); }
+}
+// Fissures qui pulsent + braises qui s'envolent (animé)
+function drawAmbientMagma() {
+  let t = Date.now(), W = canvas.width, H = canvas.height;
+  if (lavaGlowCanvas) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.14 + Math.sin(t * 0.0015) * 0.1; ctx.drawImage(lavaGlowCanvas, 0, 0); }
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 45; i++) {
+    let sp = 0.03 + (i % 7) * 0.008, y = H + 20 - ((t * sp + i * 137) % (H + 40)), x = ((i * 389) % W) + Math.sin(t * 0.002 + i) * 14;
+    let life = 1 - (H + 20 - y) / (H + 40);
+    ctx.globalAlpha = 0.25 + life * 0.6; circ(x, y, 1.2 + (i % 3) * 0.6, i % 4 ? '#ff9a2a' : '#ffe08a');
+  }
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+}
+
 // OPTIMISATION : le décor fixe (sol, rochers, bâtiments) est dessiné une seule fois
 // dans une image en cache, puis seuls les éléments animés sont redessinés.
 function drawWorldEnvironment(forceDim) {
@@ -575,10 +773,7 @@ function drawWorldLayer(dim, layer) {
   let S = layer !== 'dynamic', D = layer !== 'static';
   if (dim === 1) {
   if (S) {
-    let floorGrad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 100, canvas.width/2, canvas.height/2, Math.max(canvas.width, canvas.height));
-    floorGrad.addColorStop(0, '#2b5a2b'); floorGrad.addColorStop(1, '#112e11'); ctx.fillStyle = floorGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)'; ctx.lineWidth = 1; ctx.beginPath();
-    for (let i=0; i<canvas.width; i+=80) { ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); } for (let j=0; j<canvas.height; j+=80) { ctx.moveTo(0,j); ctx.lineTo(canvas.width,j); } ctx.stroke();
+    drawFloorEarth();
     for (let s of scenery) {
       ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.arc(s.x+6, s.y+6, s.r, 0, Math.PI*2); ctx.fill();
       if(s.type === 'rock') { let g = ctx.createRadialGradient(s.x-s.r/3, s.y-s.r/3, 0, s.x, s.y, s.r); g.addColorStop(0, '#94a3b8'); g.addColorStop(1, '#334155'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill(); }
@@ -591,6 +786,7 @@ function drawWorldLayer(dim, layer) {
     }
   }
   if (D) {
+    drawAmbientEarth();
     let bx = baseCentral.x, by = baseCentral.y, bw = baseCentral.w, bh = baseCentral.h;
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.beginPath(); ctx.roundRect(bx+10, by+10, bw, bh, 15); ctx.fill(); ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 15); ctx.fill(); ctx.strokeStyle = '#475569'; ctx.lineWidth = 4; ctx.stroke(); ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bx+15, by+15); ctx.lineTo(bx+bw-15, by+bh-15); ctx.stroke(); ctx.beginPath(); ctx.moveTo(bx+bw-15, by+15); ctx.lineTo(bx+15, by+bh-15); ctx.stroke();
     let pulseAura = 10 + Math.sin(Date.now()*0.005)*8; ctx.shadowBlur = pulseAura; ctx.shadowColor = '#38bdf8'; ctx.fillStyle = '#0284c7'; ctx.beginPath(); ctx.arc(bx+bw/2, by+bh/2, 25, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#7dd3fc'; ctx.beginPath(); ctx.arc(bx+bw/2, by+bh/2, 15, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(bx+bw/2, by+bh/2, 6, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0; ctx.fillStyle = '#38bdf8'; let corners = [[12,12], [bw-12,12], [12,bh-12], [bw-12,bh-12]]; for(let c of corners) { ctx.beginPath(); ctx.arc(bx+c[0], by+c[1], 4, 0, Math.PI*2); ctx.fill(); }
@@ -598,10 +794,7 @@ function drawWorldLayer(dim, layer) {
   }
   else if (dim === 2) {
   if (S) {
-    let floorGrad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 80, canvas.width/2, canvas.height/2, Math.max(canvas.width, canvas.height));
-    floorGrad.addColorStop(0, '#1e1035'); floorGrad.addColorStop(0.5, '#0f0720'); floorGrad.addColorStop(1, '#04010a'); ctx.fillStyle = floorGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = 'rgba(217, 70, 239, 0.07)'; ctx.lineWidth = 1; ctx.beginPath(); for(let i=0; i<canvas.width; i+=70){ctx.moveTo(i,0); ctx.lineTo(i,canvas.height);} for(let j=0; j<canvas.height; j+=70){ctx.moveTo(0,j); ctx.lineTo(canvas.width,j);} ctx.stroke();
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 160, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 280, 0, Math.PI*2); ctx.stroke();
+    drawFloorCyber();
     for (let s of scenery) {
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.beginPath(); ctx.arc(s.x+8, s.y+8, s.r, 0, Math.PI*2); ctx.fill();
       if(s.type === 'rock') { let g = ctx.createRadialGradient(s.x-s.r/3, s.y-s.r/3, 0, s.x, s.y, s.r); g.addColorStop(0, '#475569'); g.addColorStop(1, '#0f172a'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(s.x-s.r*0.4, s.y-s.r*0.2); ctx.lineTo(s.x, s.y+s.r*0.3); ctx.lineTo(s.x+s.r*0.4, s.y-s.r*0.1); ctx.stroke(); }
@@ -613,16 +806,13 @@ function drawWorldLayer(dim, layer) {
     }
   }
   if (D) {
+    drawAmbientCyber();
     let cx = baseCentral.x+baseCentral.w/2, cy = baseCentral.y+baseCentral.h/2, r = baseCentral.w/2, t = Date.now()*0.002; ctx.save(); ctx.translate(cx, cy); ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.beginPath(); ctx.arc(10, 10, r+8, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#0f172a'; ctx.strokeStyle = '#475569'; ctx.lineWidth = 5; ctx.beginPath(); for(let i=0; i<8; i++) { let a=(i*Math.PI)/4+Math.PI/8; let px=Math.cos(a)*r; let py=Math.sin(a)*r; if(i===0) ctx.moveTo(px, py); else ctx.lineTo(px, py); } ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 6; for(let i=0; i<4; i++) { let a=(i*Math.PI)/2; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(a)*r*0.85, Math.sin(a)*r*0.85); ctx.stroke(); } let pylons = [[-r*0.65,-r*0.65], [r*0.65,-r*0.65], [-r*0.65,r*0.65], [r*0.65,r*0.65]]; for(let p of pylons){ ctx.fillStyle='#334155'; ctx.beginPath(); ctx.arc(p[0],p[1],12,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#020617'; ctx.lineWidth=2; ctx.stroke(); ctx.shadowBlur=10; ctx.shadowColor='#d946ef'; ctx.fillStyle='#f0abfc'; ctx.beginPath(); ctx.arc(p[0],p[1],5,0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0; } ctx.save(); ctx.rotate(t); ctx.strokeStyle='#38bdf8'; ctx.lineWidth=3; ctx.setLineDash([12, 8]); ctx.beginPath(); ctx.arc(0,0,r*0.55, 0, Math.PI*2); ctx.stroke(); ctx.restore(); let corePulse=22+Math.sin(t*3)*4; let coreGrad=ctx.createRadialGradient(0,0,2,0,0,corePulse); coreGrad.addColorStop(0,'#ffffff'); coreGrad.addColorStop(0.4,'#38bdf8'); coreGrad.addColorStop(0.8,'#9333ea'); coreGrad.addColorStop(1,'rgba(147, 51, 234, 0)'); ctx.shadowBlur=25; ctx.shadowColor='#38bdf8'; ctx.fillStyle=coreGrad; ctx.beginPath(); ctx.arc(0,0,corePulse,0,Math.PI*2); ctx.fill(); ctx.shadowBlur=0; ctx.strokeStyle='#94a3b8'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,22,0,Math.PI*2); ctx.stroke(); ctx.restore();
   }
   }
   else if (dim === 3) {
   if (S) {
-    let floorGrad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 100, canvas.width/2, canvas.height/2, Math.max(canvas.width, canvas.height));
-    floorGrad.addColorStop(0, '#1f1313'); floorGrad.addColorStop(1, '#050202'); ctx.fillStyle = floorGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = 'rgba(220, 38, 38, 0.15)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
-    for(let i=0; i<canvas.width; i+=150){ ctx.beginPath(); ctx.moveTo(i,0); let cx=i; for(let j=0; j<canvas.height; j+=50){ cx+=Math.sin(i*123+j)*30; ctx.lineTo(cx,j); } ctx.stroke(); }
-    for(let j=0; j<canvas.height; j+=150){ ctx.beginPath(); ctx.moveTo(0,j); let cy=j; for(let i=0; i<canvas.width; i+=50){ cy+=Math.sin(j*321+i)*30; ctx.lineTo(i,cy); } ctx.stroke(); }
+    drawFloorMagma();
   }
     for (let s of scenery) {
       if(s.type === 'magma') { if (!D) continue;
@@ -640,6 +830,7 @@ function drawWorldLayer(dim, layer) {
     ctx.fillRect(b.x+b.w/2-15, b.y+12, 30, 8); ctx.fillRect(b.x+b.w/2-15, b.y+b.h-20, 30, 8); ctx.fillRect(b.x+12, b.y+b.h/2-15, 8, 30); ctx.fillRect(b.x+b.w-20, b.y+b.h/2-15, 8, 30);
   }
   if (D) {
+    drawAmbientMagma();
     let bx = baseCentral.x; let by = baseCentral.y; let bw = baseCentral.w; let bh = baseCentral.h;
     ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillRect(bx+5, by+5, bw, bh); ctx.fillStyle = '#1c1917'; ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 15); ctx.fill(); ctx.strokeStyle = '#44403c'; ctx.lineWidth = 4; ctx.stroke(); ctx.fillStyle = '#b91c1c'; ctx.fillRect(bx+bw/2-10, by, 20, bh); ctx.fillRect(bx, by+bh/2-10, bw, 20); let t = Date.now()*0.002; let cPulse = 0.5+Math.abs(Math.sin(t))*0.5; ctx.fillStyle = `rgba(249, 115, 22, ${cPulse})`; ctx.fillRect(bx+bw/2-6, by, 12, bh); ctx.fillRect(bx, by+bh/2-6, bw, 12); ctx.fillStyle = '#0a0a0a'; ctx.beginPath(); ctx.arc(bx+bw/2, by+bh/2, 35, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#ea580c'; ctx.lineWidth = 3; ctx.stroke(); let corePulse = 20+Math.sin(t*2)*5; let coreGrad = ctx.createRadialGradient(bx+bw/2, by+bh/2, 2, bx+bw/2, by+bh/2, corePulse); coreGrad.addColorStop(0, '#ffffff'); coreGrad.addColorStop(0.3, '#facc15'); coreGrad.addColorStop(0.7, '#ef4444'); coreGrad.addColorStop(1, 'rgba(239, 68, 68, 0)'); ctx.shadowBlur = 25; ctx.shadowColor = '#facc15'; ctx.fillStyle = coreGrad; ctx.beginPath(); ctx.arc(bx+bw/2, by+bh/2, corePulse, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0; ctx.fillStyle = '#292524'; let corners = [[20,20], [bw-20,20], [20,bh-20], [bw-20,bh-20]]; for(let c of corners){ctx.beginPath(); ctx.arc(bx+c[0], by+c[1], 8, 0, Math.PI*2); ctx.fill(); ctx.fillStyle='#ea580c'; ctx.beginPath(); ctx.arc(bx+c[0], by+c[1], 3, 0, Math.PI*2); ctx.fill(); ctx.fillStyle='#292524';}
   }
