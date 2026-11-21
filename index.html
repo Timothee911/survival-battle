@@ -202,17 +202,15 @@ window.addEventListener('mousedown', e => {
     }
   }
   else if (gameState === 'admin_sandbox') {
-    let pX = canvas.width - 220;
-    if (mx >= pX) {
-        let tools = ['shoot_toggle','clear','normal','sprinter','tank','sniper','charger','kamikaze','healer','summoner','burrower','boss1','boss2','boss3','lobby'];
-        let y = 60;
-        for(let t of tools) {
-            if(my >= y && my <= y+30) {
-                if(t==='shoot_toggle') sandboxMode = sandboxMode==='spawn'?'shoot':'spawn';
-                else if(t==='clear') { enemies=[]; activeBoss=null; } else if(t==='lobby') gameState='lobby'; else { sandboxTool=t; sandboxMode='spawn'; } return;
-            } y+=35;
-        }
-    } else { if(sandboxMode==='shoot') shoot(); else spawnAdminEnemy(mx, my, sandboxTool); }
+    let A = adminLayout();
+    if (mx >= A.px) {
+      for (let r of A.items) if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {
+        if (r.id === 'mode_spawn') sandboxMode = 'spawn'; else if (r.id === 'mode_shoot') sandboxMode = 'shoot';
+        else if (r.id === 'clear') { enemies = []; activeBoss = null; } else if (r.id === 'lobby') gameState = 'lobby';
+        else { sandboxTool = r.id; sandboxMode = 'spawn'; }
+        return;
+      }
+    } else { if (sandboxMode === 'shoot') shoot(); else spawnAdminEnemy(mx, my, sandboxTool); }
   }
   else if (gameState === 'reward') {
     let R = rewardLayout(); for (let i = 0; i < R.cards.length; i++) { let c = R.cards[i]; if (mx >= c.x && mx <= c.x + c.w && my >= c.y - 10 && my <= c.y + c.h) { pickReward(i); break; } }
@@ -1273,15 +1271,53 @@ function drawHUD() {
   ctx.restore();
 }
 
+const ADMIN_MOBS = [
+  { id: 'normal', label: 'Zombie', r: 14 }, { id: 'sprinter', label: 'Araignée', r: 12 }, { id: 'tank', label: 'Gros Zombie', r: 24 },
+  { id: 'sniper', label: 'Sniper', r: 14 }, { id: 'charger', label: 'Chargeur', r: 16 }, { id: 'kamikaze', label: 'Kamikaze', r: 12 },
+  { id: 'healer', label: 'Guérisseur', r: 15 }, { id: 'summoner', label: 'Invocateur', r: 20 }, { id: 'burrower', label: 'Foreur', r: 16 }];
+const ADMIN_BOSSES = [{ id: 'boss1', label: 'Boss Terre', r: 42, dim: 1 }, { id: 'boss2', label: 'Boss Cyber', r: 42, dim: 2 }, { id: 'boss3', label: 'Boss Magma', r: 55, dim: 3 }];
+function adminLayout() {
+  let W = canvas.width, H = canvas.height, pw = 264, px = W - pw, m = 12, iw = pw - 2 * m;
+  let cell = Math.max(56, Math.min(78, (H - 330) / 4)), gap = 6, cw = (iw - 2 * gap) / 3, items = [], y = 66;
+  let toggle = { id: 'mode_spawn', x: px + m, y, w: iw / 2 - 2, h: 36 }; items.push(toggle, { id: 'mode_shoot', x: px + m + iw / 2 + 2, y, w: iw / 2 - 2, h: 36 }); y += 46;
+  items.push({ id: 'clear', x: px + m, y, w: iw, h: 34 }); y += 46;
+  let l1 = y; y += 18;
+  ADMIN_MOBS.forEach((mb, i) => { items.push({ id: mb.id, x: px + m + (i % 3) * (cw + gap), y: y + Math.floor(i / 3) * (cell + gap), w: cw, h: cell }); }); y += 3 * (cell + gap) + 6;
+  let l2 = y; y += 18;
+  ADMIN_BOSSES.forEach((mb, i) => { items.push({ id: mb.id, x: px + m + i * (cw + gap), y, w: cw, h: cell }); }); y += cell + 12;
+  items.push({ id: 'lobby', x: px + m, y: Math.min(y, H - 74), w: iw, h: 36 });
+  return { px, pw, items, l1, l2 };
+}
 function drawAdminHUD() {
-  let panelX = canvas.width - 220; ctx.fillStyle = 'rgba(2,6,23,0.95)'; ctx.fillRect(panelX, 0, 220, canvas.height); ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(panelX,0); ctx.lineTo(panelX, canvas.height); ctx.stroke();
-  ctx.fillStyle = '#38bdf8'; ctx.font = '900 20px system-ui'; ctx.textAlign = 'center'; ctx.fillText('MODE ADMIN', panelX + 110, 30);
-  let yOff = 60; let tools = [{ id: 'shoot_toggle', label: sandboxMode === 'spawn' ? 'Mode: APPARITION' : 'Mode: TIR' }, { id: 'clear', label: 'TUER TOUT' }, { id: 'normal', label: 'Zombie' }, { id: 'sprinter', label: 'Araignée' }, { id: 'tank', label: 'Gros Zombie' }, { id: 'sniper', label: 'Sniper' }, { id: 'charger', label: 'Chargeur' }, { id: 'kamikaze', label: 'Kamikaze' }, { id: 'healer', label: 'Guérisseur' }, { id: 'summoner', label: 'Invocateur' }, { id: 'burrower', label: 'Foreur' }, { id: 'boss1', label: 'Boss Dim 1' }, { id: 'boss2', label: 'Boss Dim 2' }, { id: 'boss3', label: 'Boss Dim 3' }, { id: 'lobby', label: 'Quitter Sandbox' }];
-  for(let t of tools) {
-      let isSel = (sandboxTool === t.id && sandboxMode === 'spawn') || (sandboxMode === 'shoot' && t.id === 'shoot_toggle'); let tCol = isSel ? '#22c55e' : '#334155';
-      if (t.id === 'clear' || t.id === 'lobby') tCol = '#ef4444'; if (t.id === 'shoot_toggle' && sandboxMode === 'shoot') tCol = '#facc15';
-      ctx.fillStyle = tCol; ctx.beginPath(); ctx.roundRect(panelX + 10, yOff, 200, 30, 4); ctx.fill(); ctx.fillStyle = '#FFF'; ctx.font = 'bold 14px system-ui'; ctx.fillText(t.label, panelX + 110, yOff + 20); yOff += 35;
-  } ctx.textAlign = 'left';
+  let A = adminLayout(), t = Date.now() * 0.001, H = canvas.height;
+  ctx.fillStyle = 'rgba(2, 6, 23, 0.94)'; ctx.fillRect(A.px, 0, A.pw, H); ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(A.px, 0); ctx.lineTo(A.px, H); ctx.stroke();
+  let hg = ctx.createLinearGradient(0, 0, 0, 60); hg.addColorStop(0, 'rgba(56,189,248,0.3)'); hg.addColorStop(1, 'rgba(56,189,248,0)'); ctx.fillStyle = hg; ctx.fillRect(A.px, 0, A.pw, 60);
+  ctx.textAlign = 'left'; ctx.fillStyle = '#38bdf8'; ctx.font = 'italic 900 20px system-ui'; ctx.fillText('MODE ADMIN', A.px + 14, 28); ctx.fillStyle = '#64748b'; ctx.font = 'bold 11px system-ui'; ctx.fillText('BAC À SABLE · DIMENSION 4', A.px + 14, 46);
+  ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(A.px + A.pw - 22, 28, 5 + Math.sin(t * 4) * 1.2, 0, Math.PI * 2); ctx.fill();
+  const hov = (r) => mouse.x >= r.x && mouse.x <= r.x + r.w && mouse.y >= r.y && mouse.y <= r.y + r.h;
+  const label = (txt, y) => { ctx.fillStyle = '#64748b'; ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'left'; ctx.fillText(txt, A.px + 14, y + 11); };
+  label('ZOMBIES', A.l1); label('BOSS', A.l2);
+  for (let r of A.items) {
+    let h = hov(r), mob = ADMIN_MOBS.find(q => q.id === r.id) || ADMIN_BOSSES.find(q => q.id === r.id);
+    if (mob) {
+      let sel = sandboxMode === 'spawn' && sandboxTool === r.id, boss = r.id.startsWith('boss'), col = boss ? '#f59e0b' : '#22c55e';
+      ctx.fillStyle = sel ? 'rgba(34,197,94,0.18)' : (h ? 'rgba(51,65,85,0.9)' : 'rgba(15,23,42,0.9)'); ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 10); ctx.fill();
+      ctx.strokeStyle = sel ? col : (h ? '#64748b' : 'rgba(255,255,255,0.1)'); ctx.lineWidth = sel ? 2.5 : 1.5; ctx.stroke();
+      let k = Math.min(1.4, 21 / mob.r); ctx.save(); ctx.beginPath(); ctx.rect(r.x + 2, r.y + 2, r.w - 4, r.h - 18); ctx.clip(); ctx.translate(r.x + r.w / 2, r.y + (r.h - 16) / 2 + 2); ctx.scale(k, k);
+      drawEnemy({ id: 0, x: 0, y: 0, radius: mob.r, speed: 0, hp: 5, maxHp: 5, type: boss ? 'boss' : r.id, state: 'normal', walkCycle: t * 3, dim: mob.dim || 1, timer: 0, shootCooldown: 0, angle: Math.PI / 2, isBoss: boss, phase2: false }); ctx.restore();
+      ctx.fillStyle = sel ? '#f8fafc' : '#cbd5e1'; ctx.font = 'bold 10px system-ui'; ctx.textAlign = 'center'; ctx.fillText(mob.label, r.x + r.w / 2, r.y + r.h - 6);
+    } else {
+      let txt, c1, active = false;
+      if (r.id === 'mode_spawn') { txt = '✚ APPARITION'; active = sandboxMode === 'spawn'; c1 = '#22c55e'; }
+      else if (r.id === 'mode_shoot') { txt = '🎯 TIR'; active = sandboxMode === 'shoot'; c1 = '#facc15'; }
+      else if (r.id === 'clear') { txt = '☠ TUER TOUT'; c1 = '#ef4444'; }
+      else { txt = '← QUITTER LE BAC À SABLE'; c1 = '#ef4444'; }
+      let solid = active || r.id === 'clear' || r.id === 'lobby';
+      ctx.fillStyle = active ? c1 : (solid ? (h ? c1 : 'rgba(239,68,68,0.2)') : (h ? 'rgba(51,65,85,0.9)' : 'rgba(15,23,42,0.9)')); ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 10); ctx.fill(); ctx.strokeStyle = solid ? c1 : 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = active ? '#020617' : (r.id === 'clear' || r.id === 'lobby' ? (h ? '#fff' : '#fca5a5') : '#94a3b8'); ctx.font = 'italic 900 13px system-ui'; ctx.textAlign = 'center'; ctx.fillText(txt, r.x + r.w / 2, r.y + r.h / 2 + 5);
+    }
+  }
+  ctx.fillStyle = '#475569'; ctx.font = '11px system-ui'; ctx.textAlign = 'center'; ctx.fillText(sandboxMode === 'spawn' ? 'Clic sur la carte : faire apparaître' : 'Clic sur la carte : tirer', A.px + A.pw / 2, H - 22); ctx.fillText('Échap : pause · E / 1-2-3 : armes', A.px + A.pw / 2, H - 8); ctx.textAlign = 'left';
 }
 
 // =====================================================
