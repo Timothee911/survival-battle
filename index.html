@@ -165,6 +165,7 @@ function spawnParticles(x, y, color, count, speed) {
 // --- INPUTS ---
 window.addEventListener('keydown', e => {
   if (!e.key) return; keys[e.key.toLowerCase()] = true;
+  if (gameState === 'reward' && ['1','2','3'].includes(e.key)) pickReward(+e.key - 1);
   if (e.code === 'Escape' && (gameState === 'playing' || gameState === 'paused' || gameState === 'admin_sandbox')) {
     gameState = (gameState === 'paused') ? (currentDimension===4?'admin_sandbox':'playing') : 'paused';
   }
@@ -207,7 +208,7 @@ window.addEventListener('mousedown', e => {
     } else { if(sandboxMode==='shoot') shoot(); else spawnAdminEnemy(mx, my, sandboxTool); }
   }
   else if (gameState === 'reward') {
-    for (let i = 0; i < currentRewards.length; i++) { if (mx >= canvas.width/2 - 240 && mx <= canvas.width/2 + 240 && my >= 190+i*105 && my <= 280+i*105) { applyReward(currentRewards[i].id); currentWave++; setupWave(); gameState = 'playing'; break; } }
+    let R = rewardLayout(); for (let i = 0; i < R.cards.length; i++) { let c = R.cards[i]; if (mx >= c.x && mx <= c.x + c.w && my >= c.y - 10 && my <= c.y + c.h) { pickReward(i); break; } }
   }
   else if (gameState === 'gameover' || gameState === 'victory') {
     let b = endLayout().btn; if (Date.now() - endGameTime > 700 && mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) gameState = 'lobby';
@@ -220,6 +221,14 @@ window.addEventListener('mousedown', e => {
   else if (gameState === 'playing') { shoot(); }
 });
 
+function rewardLayout() {
+  let W = canvas.width, H = canvas.height, n = Math.max(1, currentRewards.length), gap = 22;
+  let cw = Math.min(250, (W - 40 - (n - 1) * gap) / n), ch = 330, tot = n * cw + (n - 1) * gap, x0 = W / 2 - tot / 2;
+  let top = Math.max(150, H / 2 - ch / 2 + 50); let cards = [];
+  for (let i = 0; i < n; i++) cards.push({ x: x0 + i * (cw + gap), y: top, w: cw, h: ch });
+  return { cards, titleY: Math.max(70, top - 90) };
+}
+function pickReward(i) { if (gameState !== 'reward' || !currentRewards[i]) return; applyReward(currentRewards[i].id); currentWave++; setupWave(); gameState = 'playing'; }
 function pauseLayout() {
   let W = canvas.width, H = canvas.height, cw = 380, ch = 360, cx = W / 2 - cw / 2, cy = Math.max(10, H / 2 - ch / 2);
   return { card: { x: cx, y: cy, w: cw, h: ch }, resume: { x: cx + 30, y: cy + 190, w: cw - 60, h: 52 }, quit: { x: cx + 30, y: cy + 256, w: cw - 60, h: 52 } };
@@ -1902,15 +1911,41 @@ function draw() {
     }
 
     if (gameState === 'reward') {
+      let R = rewardLayout(), tNow = Date.now() * 0.001;
       ctx.fillStyle = 'rgba(2, 6, 23, 0.9)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.shadowBlur = 20; ctx.shadowColor = '#facc15'; ctx.fillStyle = '#facc15'; ctx.font = '900 42px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(`VAGUE ${currentWave} SURVÉCUE !`, midX, 100); ctx.shadowBlur = 0;
-      ctx.fillStyle = '#e2e8f0'; ctx.font = 'italic 18px system-ui, sans-serif'; ctx.fillText('Choisissez une amélioration pour continuer :', midX, 145);
-
+      // rayons de lumière dorés derrière le titre
+      ctx.save(); ctx.translate(midX, R.titleY - 10); for (let i = 0; i < 14; i++) { ctx.rotate(Math.PI * 2 / 14 + 0.0008); ctx.fillStyle = 'rgba(250, 204, 21, 0.05)'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-30, -canvas.width); ctx.lineTo(30, -canvas.width); ctx.fill(); } ctx.restore();
+      ctx.textAlign = 'center'; ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 13px system-ui'; ctx.fillText(`✦  VAGUE ${currentWave} / ${maxWaves}  ✦`, midX, R.titleY - 40);
+      ctx.fillStyle = '#facc15'; ctx.font = 'italic 900 46px system-ui'; ctx.fillText('VAGUE SURVÉCUE !', midX, R.titleY + 10);
+      ctx.fillStyle = '#cbd5e1'; ctx.font = 'italic 16px system-ui'; ctx.fillText('Choisissez une amélioration pour la suite', midX, R.titleY + 40);
+      const RCOL = { turret: '#38bdf8', mines: '#fb923c', vampirism: '#ef4444', piercing: '#a78bfa', explosive: '#f97316', heal: '#4ade80', overcharge: '#facc15', barrel_reward: '#f472b6' };
       for (let i = 0; i < currentRewards.length; i++) {
-        let r = currentRewards[i]; let cardY = 190 + (i * 105); let isHoverReward = mouse.x >= midX - 240 && mouse.x <= midX + 240 && mouse.y >= cardY && mouse.y <= cardY + 90;
-        ctx.shadowBlur = isHoverReward ? 25 : 10; ctx.shadowColor = isHoverReward ? '#4ade80' : '#000'; ctx.fillStyle = isHoverReward ? 'rgba(30, 41, 59, 1)' : 'rgba(15, 23, 42, 0.9)';
-        ctx.beginPath(); ctx.roundRect(midX - 240, cardY, 480, 90, 12); ctx.fill(); ctx.strokeStyle = isHoverReward ? '#4ade80' : '#22c55e'; ctx.lineWidth = isHoverReward ? 3 : 1.5; ctx.stroke(); ctx.shadowBlur = 0;
-        ctx.fillStyle = '#4ade80'; ctx.font = 'bold 20px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.fillText(r.title, midX - 210, cardY + 35); ctx.fillStyle = '#cbd5e1'; ctx.font = '15px system-ui, sans-serif'; ctx.fillText(r.desc, midX - 210, cardY + 65);
+        let r = currentRewards[i], c = R.cards[i], col = RCOL[r.id] || '#4ade80';
+        let hov = mouse.x >= c.x && mouse.x <= c.x + c.w && mouse.y >= c.y && mouse.y <= c.y + c.h;
+        let m = r.title.match(/^(\S+)\s+(.*?)(?:\s*\(Niv\. (\d)\/(\d)\))?$/); let icon = m ? m[1] : '★', name = m ? m[2] : r.title, lv = m && m[3] ? +m[3] : 0, lvMax = m && m[4] ? +m[4] : 0;
+        let cy = c.y - (hov ? 10 : 0);
+        ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.roundRect(c.x + 6, cy + 10, c.w, c.h, 18); ctx.fill();
+        let g = ctx.createLinearGradient(0, cy, 0, cy + c.h); g.addColorStop(0, hov ? '#1e293b' : '#111a2e'); g.addColorStop(1, '#0b1222');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(c.x, cy, c.w, c.h, 18); ctx.fill();
+        ctx.strokeStyle = col; ctx.lineWidth = hov ? 4 : 2; ctx.globalAlpha = hov ? 1 : 0.7; ctx.stroke(); ctx.globalAlpha = 1;
+        // bandeau coloré en haut
+        ctx.save(); ctx.beginPath(); ctx.roundRect(c.x, cy, c.w, c.h, 18); ctx.clip(); let tg = ctx.createLinearGradient(0, cy, 0, cy + 150); tg.addColorStop(0, col); tg.addColorStop(1, 'rgba(0,0,0,0)'); ctx.globalAlpha = hov ? 0.4 : 0.25; ctx.fillStyle = tg; ctx.fillRect(c.x, cy, c.w, 150); ctx.globalAlpha = 1; ctx.restore();
+        // pastille d'icône
+        let ix = c.x + c.w / 2, iy = cy + 78, bob = hov ? Math.sin(tNow * 6) * 3 : 0;
+        ctx.fillStyle = col; ctx.globalAlpha = 0.25; ctx.beginPath(); ctx.arc(ix, iy + bob, 52, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+        ctx.fillStyle = '#0b1222'; ctx.beginPath(); ctx.arc(ix, iy + bob, 40, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.font = '40px system-ui'; ctx.fillText(icon, ix, iy + 14 + bob);
+        // nom + niveau
+        ctx.fillStyle = '#f8fafc'; ctx.font = 'italic 900 21px system-ui'; ctx.fillText(name.toUpperCase(), ix, cy + 170);
+        if (lvMax) { let pw = 26, tot = lvMax * pw + (lvMax - 1) * 6, px = ix - tot / 2; for (let k = 0; k < lvMax; k++) { ctx.fillStyle = k < lv ? col : 'rgba(255,255,255,0.14)'; ctx.beginPath(); ctx.roundRect(px + k * (pw + 6), cy + 184, pw, 8, 4); ctx.fill(); } ctx.fillStyle = col; ctx.font = 'bold 11px system-ui'; ctx.fillText(lv === 1 ? 'NOUVEAU' : `NIVEAU ${lv}`, ix, cy + 210); }
+        else { ctx.fillStyle = col; ctx.font = 'bold 11px system-ui'; ctx.fillText('INSTANTANÉ', ix, cy + 198); }
+        // description (retour à la ligne)
+        ctx.fillStyle = '#cbd5e1'; ctx.font = '14px system-ui'; let words = r.desc.split(' '), line = '', ly = cy + 238;
+        for (let w of words) { let t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > c.w - 40 && line) { ctx.fillText(line, ix, ly); ly += 19; line = w; } else line = t; }
+        ctx.fillText(line, ix, ly);
+        // touche + bouton
+        ctx.fillStyle = hov ? col : 'rgba(255,255,255,0.08)'; ctx.beginPath(); ctx.roundRect(c.x + 24, cy + c.h - 56, c.w - 48, 38, 10); ctx.fill();
+        ctx.fillStyle = hov ? '#020617' : '#94a3b8'; ctx.font = 'italic 900 14px system-ui'; ctx.fillText(`CHOISIR  [${i + 1}]`, ix, cy + c.h - 32);
       }
       ctx.textAlign = 'left'; ctx.restore(); return;
     }
