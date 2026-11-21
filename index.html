@@ -2195,7 +2195,7 @@ function drawFortniteLobby() {
 
   for (let p of lobbyParticles) { p.y -= p.speedY; p.x += p.speedX; if (p.y < 0) { p.y = canvas.height; p.x = Math.random() * canvas.width; } ctx.fillStyle = p.color; ctx.globalAlpha = p.alpha * 0.3; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius * 2.5, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = p.alpha; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill(); } ctx.globalAlpha = 1;
 
-  ctx.fillStyle = 'rgba(2, 6, 23, 0.7)'; ctx.fillRect(0, 0, canvas.width, 60); ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, 60); ctx.lineTo(canvas.width, 60); ctx.stroke(); ctx.shadowColor = '#000'; ctx.shadowBlur = 6; drawLogo(30, 42, 26, 'left'); ctx.shadowBlur = 0; ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; ctx.beginPath(); ctx.roundRect(canvas.width - 200, 12, 170, 36, 6); ctx.fill(); ctx.shadowColor = '#0ea5e9'; ctx.shadowBlur = 10; ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(canvas.width - 180, 30, 10, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#FFF'; ctx.font = 'bold 12px system-ui'; ctx.fillText('V', canvas.width - 184, 34); ctx.shadowBlur = 0; ctx.fillStyle = '#f8fafc'; ctx.font = 'italic 900 20px system-ui, sans-serif'; ctx.textAlign = 'right'; ctx.fillText(money.toString(), canvas.width - 45, 36); let lvlInfo = getLevelInfo(); let ratio = lvlInfo.level === MAX_LEVEL ? 1 : (lvlInfo.currentXP / lvlInfo.requiredXP); let barW = Math.max(120, Math.min(300, canvas.width - 380 - 330)); let barX = Math.max(canvas.width / 2 - barW / 2, 380); ctx.fillStyle = '#1e293b'; ctx.fillRect(barX, 26, barW, 10); ctx.fillStyle = '#a855f7'; ctx.shadowColor = '#a855f7'; ctx.shadowBlur = 8; ctx.fillRect(barX, 26, barW * ratio, 10); ctx.shadowBlur = 0; ctx.fillStyle = '#f8fafc'; ctx.font = 'italic 900 16px system-ui'; ctx.textAlign = 'right'; ctx.fillText(`LVL ${lvlInfo.level}`, barX - 15, 36); ctx.textAlign = 'left'; ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 12px system-ui'; ctx.fillText(lvlInfo.level === MAX_LEVEL ? 'MAX' : `${lvlInfo.currentXP}/${lvlInfo.requiredXP}`, barX + barW + 15, 35);
+  drawLobbyTopBar();
 
   let L = lobbyLayout(); let podiumX = L.podX, podiumY = L.podY;
   let pClass = CLASSES[player.color] || CLASSES['#4ade80'];
@@ -2385,11 +2385,51 @@ function drawLogo(x, y, size, align, stack) {
   ctx.restore();
 }
 
+function hexPath(cx, cy, r, rot) { ctx.beginPath(); for (let i = 0; i < 6; i++) { let a = i * Math.PI / 3 + (rot || -Math.PI / 2); ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } ctx.closePath(); }
+function drawLobbyTopBar() {
+  let W = canvas.width, H = 68, t = Date.now() * 0.001, info = getLevelInfo(), maxed = info.level === MAX_LEVEL, ratio = maxed ? 1 : info.currentXP / info.requiredXP;
+  let bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, 'rgba(2,6,23,0.96)'); bg.addColorStop(1, 'rgba(15,23,42,0.78)'); ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  let ln = ctx.createLinearGradient(0, 0, W, 0); ln.addColorStop(0, 'rgba(250,204,21,0)'); ln.addColorStop(0.15, 'rgba(250,204,21,0.8)'); ln.addColorStop(0.5, 'rgba(168,85,247,0.9)'); ln.addColorStop(0.85, 'rgba(56,189,248,0.8)'); ln.addColorStop(1, 'rgba(56,189,248,0)'); ctx.fillStyle = ln; ctx.fillRect(0, H - 3, W, 3);
+  drawLogo(28, 46, 28, 'left'); ctx.shadowBlur = 0;
+  // --- niveau + XP ---
+  let barW = Math.max(150, Math.min(360, W - 380 - 290 - 120)), barX = Math.max(400, W / 2 - barW / 2 + 20), barY = 34, barH = 16, by = barY + barH / 2;
+  // badge hexagonal
+  let bx = barX - 36, bcy = 34;
+  hexPath(bx, bcy + 3, 27); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
+  hexPath(bx, bcy, 27); let hg = ctx.createLinearGradient(bx, bcy - 27, bx, bcy + 27); hg.addColorStop(0, '#fde68a'); hg.addColorStop(0.5, '#f59e0b'); hg.addColorStop(1, '#b45309'); ctx.fillStyle = hg; ctx.fill(); ctx.strokeStyle = '#0b1020'; ctx.lineWidth = 3; ctx.stroke();
+  hexPath(bx, bcy, 21); let hg2 = ctx.createLinearGradient(bx, bcy - 21, bx, bcy + 21); hg2.addColorStop(0, '#6d28d9'); hg2.addColorStop(1, '#2e1065'); ctx.fillStyle = hg2; ctx.fill();
+  ctx.textAlign = 'center'; ctx.fillStyle = '#c4b5fd'; ctx.font = 'bold 8px system-ui'; ctx.fillText('NIV', bx, bcy - 7); ctx.fillStyle = '#ffffff'; ctx.font = `900 ${info.level > 99 ? 15 : 20}px system-ui`; ctx.fillText(String(info.level), bx, bcy + 12);
+  // textes au-dessus de la barre
+  ctx.textAlign = 'left'; ctx.fillStyle = '#e2e8f0'; ctx.font = 'italic 900 12px system-ui'; ctx.fillText(maxed ? 'NIVEAU MAX' : (barW < 300 ? `SUIVANT : ${info.level + 1}` : `PROCHAIN NIVEAU : ${info.level + 1}`), barX, barY - 7);
+  ctx.textAlign = 'right'; ctx.fillStyle = '#a78bfa'; ctx.font = 'bold 12px system-ui'; ctx.fillText(maxed ? 'MAX' : `${info.currentXP} / ${info.requiredXP} XP`, barX + barW, barY - 7);
+  // barre
+  ctx.fillStyle = '#0b1020'; ctx.beginPath(); ctx.roundRect(barX - 2, barY - 2, barW + 4, barH + 4, 10); ctx.fill(); ctx.strokeStyle = 'rgba(167,139,250,0.35)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = 'rgba(30,41,59,0.9)'; ctx.beginPath(); ctx.roundRect(barX, barY, barW, barH, 8); ctx.fill();
+  let fw = Math.max(barH, barW * ratio);
+  ctx.save(); ctx.beginPath(); ctx.roundRect(barX, barY, fw, barH, 8); ctx.clip();
+  let fg = ctx.createLinearGradient(0, barY, 0, barY + barH); fg.addColorStop(0, '#d8b4fe'); fg.addColorStop(0.5, '#a855f7'); fg.addColorStop(1, '#6d28d9'); ctx.fillStyle = fg; ctx.fillRect(barX, barY, fw, barH);
+  ctx.fillStyle = 'rgba(255,255,255,0.18)'; for (let k = -2; k < fw / 14 + 2; k++) { let sx = barX + k * 14 + (t * 20) % 14; ctx.beginPath(); ctx.moveTo(sx, barY + barH); ctx.lineTo(sx + 7, barY + barH); ctx.lineTo(sx + 14, barY); ctx.lineTo(sx + 7, barY); ctx.closePath(); ctx.fill(); }
+  ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(barX, barY + 2, fw, 3); ctx.restore();
+  ctx.fillStyle = 'rgba(216,180,254,0.5)'; ctx.beginPath(); ctx.arc(barX + fw, by, 9 + Math.sin(t * 5) * 1.5, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(barX + fw - 2, by, 3.5, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(2,6,23,0.55)'; ctx.lineWidth = 1.5; ctx.beginPath(); for (let i = 1; i < 10; i++) { let tx = barX + i * barW / 10; ctx.moveTo(tx, barY + 2); ctx.lineTo(tx, barY + barH - 2); } ctx.stroke();
+  // badge du niveau suivant
+  if (!maxed) { let nx = barX + barW + 26; hexPath(nx, bcy, 17); ctx.fillStyle = 'rgba(30,41,59,0.95)'; ctx.fill(); ctx.strokeStyle = 'rgba(167,139,250,0.6)'; ctx.lineWidth = 2; ctx.stroke(); ctx.textAlign = 'center'; ctx.fillStyle = '#94a3b8'; ctx.font = '900 14px system-ui'; ctx.fillText(String(info.level + 1), nx, bcy + 5); }
+  // --- V-Bucks ---
+  let pw = 190, px = W - pw - 24, py = 14, ph = 40;
+  ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.roundRect(px + 2, py + 3, pw, ph, 20); ctx.fill();
+  let pg = ctx.createLinearGradient(px, py, px, py + ph); pg.addColorStop(0, 'rgba(14,116,144,0.55)'); pg.addColorStop(1, 'rgba(2,6,23,0.9)'); ctx.fillStyle = pg; ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 20); ctx.fill(); ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2; ctx.stroke();
+  let cx = px + 22, cyc = py + ph / 2; ctx.fillStyle = 'rgba(56,189,248,0.3)'; ctx.beginPath(); ctx.arc(cx, cyc, 19, 0, Math.PI * 2); ctx.fill();
+  let cg = ctx.createLinearGradient(cx - 14, cyc - 14, cx + 14, cyc + 14); cg.addColorStop(0, '#bae6fd'); cg.addColorStop(0.5, '#38bdf8'); cg.addColorStop(1, '#0369a1'); ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(cx, cyc, 15, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#0b1020'; ctx.lineWidth = 2.5; ctx.stroke(); ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(cx, cyc, 11, 0.4, 2.2); ctx.stroke();
+  ctx.textAlign = 'center'; ctx.fillStyle = '#0c4a6e'; ctx.font = '900 16px system-ui'; ctx.fillText('V', cx, cyc + 6);
+  let shine = ((t * 0.6) % 2) * 60 - 20; if (shine < 30) { ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.save(); ctx.beginPath(); ctx.arc(cx, cyc, 15, 0, Math.PI * 2); ctx.clip(); ctx.translate(cx - 15 + shine, cyc); ctx.rotate(0.5); ctx.fillRect(-2, -20, 4, 40); ctx.restore(); }
+  ctx.textAlign = 'right'; ctx.fillStyle = '#7dd3fc'; ctx.font = 'bold 9px system-ui'; ctx.fillText('V-BUCKS', px + pw - 16, py + 14); ctx.fillStyle = '#f8fafc'; ctx.font = 'italic 900 22px system-ui'; ctx.fillText(money.toLocaleString('fr-FR'), px + pw - 16, py + 34);
+  ctx.textAlign = 'left';
+}
 function lobbyItems() {
   return [ { name: 'VITESSE', key: 'speed', cost: Math.floor(250 * Math.pow(1.6, upgrades.speed)), max: 5 }, { name: 'SANTÉ', key: 'hp', cost: Math.floor(300 * Math.pow(1.6, upgrades.hp)), max: 5 }, { name: 'SANTÉ BASE', key: 'baseHP', cost: Math.floor(350 * Math.pow(1.6, upgrades.baseHP)), max: 5 }, { name: 'DÉGÂTS', key: 'damage', cost: Math.floor(400 * Math.pow(1.7, upgrades.damage)), max: 5 }, { name: 'POMPE', key: 'shotgunLevel', cost: Math.floor(800 * Math.pow(2.0, upgrades.shotgunLevel)), max: 3 }, { name: 'ROQUETTES', key: 'rocketLevel', cost: Math.floor(1200 * Math.pow(2.2, upgrades.rocketLevel)), max: 3 } ];
 }
 function lobbyLayout() {
-  let W = canvas.width, H = canvas.height, m = 24, top = 80;
+  let W = canvas.width, H = canvas.height, m = 24, top = 88;
   let leftW = Math.max(230, Math.min(290, W * 0.22)), rightW = Math.max(320, Math.min(410, W * 0.3));
   let playH = 72, bottom = H - m;
   let right = { x: W - m - rightW, y: top, w: rightW, h: bottom - top - playH - 16 - 54 };
