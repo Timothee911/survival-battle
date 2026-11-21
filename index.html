@@ -198,7 +198,7 @@ window.addEventListener('mousedown', e => {
     let L = lobbyLayout(), hit = (r) => mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h;
     if (hit(L.dimBtn)) { gameState = 'dimselect'; return; }
     if (hit(L.play)) { let sd = dimUnlocked(startDim) ? startDim : 1; startLoading(1400, () => { gameState = 'playing'; resetGame(); if (sd > 1) enterDimension(sd); }, `DIMENSION ${sd} · ${DIMS[sd - 1].n}`, 'Préparation du champ de bataille'); return; }
-    if (hit(L.admin)) { let code = prompt("CODE ADMIN :"); if (code === "1234" || code === "admin") enterSandbox(); else if (code) alert("Code refusé."); return; }
+    if (hit(L.admin)) { adminLogin(); return; }
     let skinColors = ['#4ade80', '#f87171', '#22d3ee'];
     for (let i = 0; i < 3; i++) if (hit(L.classes[i])) setClass(skinColors[i]);
     if (hit(L.arrows[0])) cycleClass(-1); if (hit(L.arrows[1])) cycleClass(1);
@@ -257,6 +257,29 @@ function endLayout() {
   return { card: { x: cx, y: cy, w: cw, h: ch }, btn: { x: cx + cw / 2 - 150, y: cy + 322, w: 300, h: 62 } };
 }
 
+// ===== ACCÈS ADMIN SÉCURISÉ =====
+// Le mot de passe n'est jamais écrit dans le code : seule une empreinte PBKDF2 (250 000 itérations) est stockée.
+// Après 3 échecs, l'accès est bloqué 10 minutes sur cet appareil.
+const ADMIN_SALT = '9291dc788b453d641f7ca89ff2dea6d1', ADMIN_HASH = 'ab44586529f75e9d3c7468a7f9a6a8b5e562cb7367122d23fa59c9f49f75d8c6';
+async function adminHash(pw) {
+  let enc = new TextEncoder(), key = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveBits']);
+  let salt = enc.encode(ADMIN_SALT);
+  let bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' }, key, 256);
+  return Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function adminLogin() {
+  let lock = 0, fails = 0; try { lock = +localStorage.getItem('adminLock') || 0; fails = +localStorage.getItem('adminFails') || 0; } catch (e) {}
+  if (Date.now() < lock) { alert('Accès admin bloqué. Réessayez dans ' + Math.ceil((lock - Date.now()) / 60000) + ' min.'); return; }
+  let code = prompt('MOT DE PASSE ADMIN :'); if (!code) return;
+  if (!(window.crypto && crypto.subtle)) { alert('Connexion admin impossible sur cette page (contexte non sécurisé).'); return; }
+  let ok = false; try { let hh = await adminHash(code.trim()), diff = hh.length ^ ADMIN_HASH.length; for (let i = 0; i < ADMIN_HASH.length; i++) diff |= hh.charCodeAt(i) ^ ADMIN_HASH.charCodeAt(i); ok = diff === 0; } catch (e) {}
+  if (ok) { try { localStorage.removeItem('adminFails'); localStorage.removeItem('adminLock'); } catch (e) {} enterSandbox(); return; }
+  fails++; let msg = 'Mot de passe incorrect.';
+  if (fails >= 3) { fails = 0; try { localStorage.setItem('adminLock', Date.now() + 10 * 60000); } catch (e) {} msg += ' Trop d\'essais : accès bloqué 10 minutes.'; }
+  else msg += ' (' + (3 - fails) + ' essai' + (3 - fails > 1 ? 's' : '') + ' restant' + (3 - fails > 1 ? 's' : '') + ')';
+  try { localStorage.setItem('adminFails', fails); } catch (e) {}
+  alert(msg);
+}
 function enterSandbox() {
     gameState = 'admin_sandbox'; currentDimension = 4; initMapEnvironment(4); portal.active = false; activeBoss = null;
     baseCentral.maxHp = 999999; baseCentral.hp = 999999; player.hp = 999999; player.x = canvas.width/2; player.y = canvas.height/2 + 150;
