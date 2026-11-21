@@ -210,15 +210,24 @@ window.addEventListener('mousedown', e => {
     for (let i = 0; i < currentRewards.length; i++) { if (mx >= canvas.width/2 - 240 && mx <= canvas.width/2 + 240 && my >= 190+i*105 && my <= 280+i*105) { applyReward(currentRewards[i].id); currentWave++; setupWave(); gameState = 'playing'; break; } }
   }
   else if (gameState === 'gameover' || gameState === 'victory') {
-    if (mx >= canvas.width/2 - 120 && mx <= canvas.width/2 + 120 && my >= canvas.height/2 + 140 && my <= canvas.height/2 + 200) gameState = 'lobby';
+    let b = endLayout().btn; if (Date.now() - endGameTime > 700 && mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) gameState = 'lobby';
   }
   else if (gameState === 'paused') {
-    let bx = canvas.width/2 - 100;
-    if (mx >= bx && mx <= bx+200 && my >= canvas.height/2+20 && my <= canvas.height/2+70) gameState = currentDimension===4?'admin_sandbox':'playing';
-    if (mx >= bx && mx <= bx+200 && my >= canvas.height/2+90 && my <= canvas.height/2+140) gameState = 'lobby';
+    let P = pauseLayout(), hit = (r) => mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h;
+    if (hit(P.resume)) gameState = currentDimension === 4 ? 'admin_sandbox' : 'playing';
+    else if (hit(P.quit)) gameState = 'lobby';
   }
   else if (gameState === 'playing') { shoot(); }
 });
+
+function pauseLayout() {
+  let W = canvas.width, H = canvas.height, cw = 380, ch = 360, cx = W / 2 - cw / 2, cy = Math.max(10, H / 2 - ch / 2);
+  return { card: { x: cx, y: cy, w: cw, h: ch }, resume: { x: cx + 30, y: cy + 190, w: cw - 60, h: 52 }, quit: { x: cx + 30, y: cy + 256, w: cw - 60, h: 52 } };
+}
+function endLayout() {
+  let W = canvas.width, H = canvas.height, cw = Math.min(640, W - 40), ch = 410, cx = W / 2 - cw / 2, cy = Math.max(10, H / 2 - ch / 2);
+  return { card: { x: cx, y: cy, w: cw, h: ch }, btn: { x: cx + cw / 2 - 150, y: cy + 322, w: 300, h: 62 } };
+}
 
 function enterSandbox() {
     gameState = 'admin_sandbox'; currentDimension = 4; initMapEnvironment(4); portal.active = false; activeBoss = null;
@@ -1878,15 +1887,18 @@ function draw() {
     }
 
     if (gameState === 'paused') {
-      ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#FFF'; ctx.font = '900 48px system-ui'; ctx.textAlign = 'center'; ctx.fillText('PAUSE', midX, canvas.height/2 - 40);
-      let btnW = 200; let btnH = 50; let btnX = midX - btnW/2; let btnY = canvas.height/2 + 20;
-      let hResume = mouse.x >= btnX && mouse.x <= btnX+btnW && mouse.y >= btnY && mouse.y <= btnY+btnH;
-      ctx.fillStyle = hResume ? '#38bdf8' : '#0ea5e9'; ctx.beginPath(); ctx.roundRect(btnX, btnY, btnW, btnH, 8); ctx.fill();
-      ctx.fillStyle = '#FFF'; ctx.font = 'bold 18px system-ui'; ctx.fillText('REPRENDRE', midX, btnY + 32);
-      let hQuit = mouse.x >= btnX && mouse.x <= btnX+btnW && mouse.y >= btnY+70 && mouse.y <= btnY+70+btnH;
-      ctx.fillStyle = hQuit ? '#f87171' : '#ef4444'; ctx.beginPath(); ctx.roundRect(btnX, btnY + 70, btnW, btnH, 8); ctx.fill();
-      ctx.fillStyle = '#FFF'; ctx.fillText('QUITTER', midX, btnY + 102); ctx.textAlign = 'left';
+      let P = pauseLayout(); ctx.fillStyle = 'rgba(2, 6, 23, 0.72)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.95)'; ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(P.card.x, P.card.y, P.card.w, P.card.h, 18); ctx.fill(); ctx.stroke();
+      ctx.textAlign = 'center'; ctx.fillStyle = '#f8fafc'; ctx.font = 'italic 900 44px system-ui'; ctx.fillText('PAUSE', midX, P.card.y + 66);
+      ctx.fillStyle = '#38bdf8'; ctx.fillRect(midX - 28, P.card.y + 80, 56, 3);
+      let dn = ['', 'TERRE', 'CYBER', 'MAGMA', 'ADMIN'][currentDimension] || '';
+      let tiles = currentDimension === 4 ? [['DIMENSION', dn]] : [['VAGUE', currentWave + '/' + maxWaves], ['SCORE', String(score)], ['DIMENSION', dn]];
+      let tw = (P.card.w - 40 - (tiles.length - 1) * 10) / tiles.length;
+      tiles.forEach((t, i) => { let tx = P.card.x + 20 + i * (tw + 10), ty = P.card.y + 104; ctx.fillStyle = 'rgba(30, 41, 59, 0.8)'; ctx.beginPath(); ctx.roundRect(tx, ty, tw, 58, 10); ctx.fill(); ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 11px system-ui'; ctx.fillText(t[0], tx + tw / 2, ty + 20); ctx.fillStyle = '#f8fafc'; ctx.font = '900 20px system-ui'; ctx.fillText(t[1], tx + tw / 2, ty + 45); });
+      const pbtn = (r, label, c1, c2, hov) => { ctx.fillStyle = hov ? c1 : c2; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 12); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#fff'; ctx.font = 'italic 900 18px system-ui'; ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + 6); };
+      const hv = (r) => mouse.x >= r.x && mouse.x <= r.x + r.w && mouse.y >= r.y && mouse.y <= r.y + r.h;
+      pbtn(P.resume, '▶  REPRENDRE', '#38bdf8', '#0ea5e9', hv(P.resume)); pbtn(P.quit, 'QUITTER VERS LE LOBBY', '#f87171', '#dc2626', hv(P.quit));
+      ctx.fillStyle = '#64748b'; ctx.font = '12px system-ui'; ctx.fillText('Échap pour reprendre', midX, P.card.y + P.card.h - 14); ctx.textAlign = 'left';
     }
 
     if (gameState === 'reward') {
@@ -1904,42 +1916,37 @@ function draw() {
     }
 
     if (gameState === 'gameover' || gameState === 'victory') {
-      let dt = Date.now() - endGameTime; let animAlpha = Math.min(1, dt / 1500);
-      let endColor = gameState === 'victory' ? 'rgba(20, 83, 45, 0.85)' : 'rgba(69, 10, 10, 0.85)';
-      ctx.fillStyle = `rgba(0,0,0, ${animAlpha * 0.7})`; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = endColor; ctx.globalAlpha = animAlpha; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.globalAlpha = 1;
-
-      let rayGrad = ctx.createLinearGradient(0, canvas.height/2 - 150, 0, canvas.height/2 + 150);
-      let rayColor = gameState === 'victory' ? 'rgba(250, 204, 21, 0.3)' : 'rgba(239, 68, 68, 0.3)';
-      rayGrad.addColorStop(0, 'rgba(0,0,0,0)'); rayGrad.addColorStop(0.5, rayColor); rayGrad.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = rayGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      for(let p of endParticles) {
-          p.x += p.speedX; p.y += p.speedY; p.rotation += p.rotSpeed;
-          if(gameState === 'victory' && p.y > canvas.height) p.y = -10;
-          if(gameState === 'gameover' && p.y < 0) p.y = canvas.height + 10;
-          ctx.save(); ctx.globalAlpha = p.alpha * animAlpha; ctx.translate(p.x, p.y); ctx.rotate(p.rotation); ctx.fillStyle = p.color;
-          if(gameState === 'victory') { ctx.fillRect(-p.radius, -p.radius/2, p.radius*2, p.radius); } else { ctx.shadowBlur = 10; ctx.shadowColor = p.color; ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, Math.PI*2); ctx.fill(); }
-          ctx.restore();
+      let dt = Date.now() - endGameTime; let animAlpha = Math.min(1, dt / 1500); let win = gameState === 'victory';
+      ctx.fillStyle = `rgba(2, 6, 23, ${animAlpha * 0.82})`; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = animAlpha * 0.35; ctx.fillStyle = win ? '#14532d' : '#7f1d1d'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.globalAlpha = 1;
+      for (let p of endParticles) {
+        p.x += p.speedX; p.y += p.speedY; p.rotation += p.rotSpeed;
+        if (win && p.y > canvas.height) p.y = -10; if (!win && p.y < 0) p.y = canvas.height + 10;
+        ctx.save(); ctx.globalAlpha = p.alpha * animAlpha; ctx.translate(p.x, p.y); ctx.rotate(p.rotation); ctx.fillStyle = p.color;
+        if (win) ctx.fillRect(-p.radius, -p.radius / 2, p.radius * 2, p.radius); else { ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, Math.PI * 2); ctx.fill(); }
+        ctx.restore();
       }
-
-      ctx.save(); ctx.translate(midX, canvas.height / 2 - 140);
-      let scale = animAlpha < 0.5 ? 1 + (0.5 - animAlpha) * 2 : 1; ctx.scale(scale, scale);
-      let titleStr = gameState === 'victory' ? 'VICTOIRE TOTALE !' : 'GAME OVER'; let tColor = gameState === 'victory' ? '#4ade80' : '#ef4444';
-      ctx.shadowBlur = 30; ctx.shadowColor = tColor; ctx.fillStyle = tColor; ctx.font = '900 64px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(titleStr, 0, 0); ctx.strokeStyle = '#FFF'; ctx.lineWidth = 2; ctx.strokeText(titleStr, 0, 0); ctx.restore();
-
-      if(animAlpha > 0.5) {
-          let statsAlpha = (animAlpha - 0.5) * 2; ctx.globalAlpha = statsAlpha;
-          ctx.fillStyle = 'rgba(15, 23, 42, 0.8)'; ctx.beginPath(); ctx.roundRect(midX - 250, canvas.height / 2 - 80, 220, 80, 10); ctx.fill(); ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#facc15'; ctx.font = 'bold 22px system-ui'; ctx.textAlign = 'center'; ctx.fillText(`💰 +${score} V-Bucks`, midX - 140, canvas.height / 2 - 35);
-          ctx.fillStyle = 'rgba(15, 23, 42, 0.8)'; ctx.beginPath(); ctx.roundRect(midX + 30, canvas.height / 2 - 80, 220, 80, 10); ctx.fill(); ctx.strokeStyle = '#c084fc'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#c084fc'; ctx.font = 'bold 22px system-ui'; ctx.fillText(`✨ +${score} XP`, midX + 140, canvas.height / 2 - 35);
-
-          let acc = runStats.shots > 0 ? ((runStats.hits / runStats.shots) * 100).toFixed(1) : 0;
-          ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.beginPath(); ctx.roundRect(midX - 250, canvas.height/2 + 20, 500, 80, 8); ctx.fill(); ctx.strokeStyle = '#38bdf8'; ctx.stroke();
-          ctx.fillStyle = '#FFF'; ctx.font = '18px system-ui'; ctx.fillText(`🎯 Précision : ${acc}%`, midX - 120, canvas.height/2 + 50); ctx.fillText(`💀 Éliminés : ${runStats.kills}`, midX + 120, canvas.height/2 + 50); ctx.fillStyle = '#facc15'; ctx.fillText(`⚡ Critiques : ${runStats.crits}`, midX, canvas.height/2 + 80);
-
-          let btnW = 240; let btnH = 60; let btnX = midX - btnW/2; let btnY = canvas.height / 2 + 140; let hoverEnd = mouse.x >= btnX && mouse.x <= btnX + btnW && mouse.y >= btnY && mouse.y <= btnY + btnH;
-          ctx.shadowBlur = hoverEnd ? 20 : 0; ctx.shadowColor = '#38bdf8'; ctx.fillStyle = hoverEnd ? '#0ea5e9' : '#0284c7'; ctx.beginPath(); ctx.roundRect(btnX, btnY, btnW, btnH, 8); ctx.fill(); ctx.strokeStyle = '#bae6fd'; ctx.lineWidth = 2; ctx.stroke(); ctx.shadowBlur = 0; ctx.fillStyle = '#FFF'; ctx.font = 'bold 20px system-ui'; ctx.fillText('RETOUR AU LOBBY', midX, btnY + 38); ctx.globalAlpha = 1.0;
-      }
-      ctx.textAlign = 'left';
+      let E = endLayout(), accent = win ? '#4ade80' : '#ef4444';
+      ctx.save(); ctx.globalAlpha = animAlpha; ctx.translate(0, (1 - animAlpha) * 30);
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.96)'; ctx.strokeStyle = accent; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(E.card.x, E.card.y, E.card.w, E.card.h, 20); ctx.fill(); ctx.stroke();
+      // bandeau titre
+      ctx.save(); ctx.beginPath(); ctx.roundRect(E.card.x, E.card.y, E.card.w, 110, [20, 20, 0, 0]); ctx.clip();
+      let bg = ctx.createLinearGradient(0, E.card.y, 0, E.card.y + 110); bg.addColorStop(0, win ? 'rgba(34,197,94,0.45)' : 'rgba(239,68,68,0.45)'); bg.addColorStop(1, 'rgba(15,23,42,0)'); ctx.fillStyle = bg; ctx.fillRect(E.card.x, E.card.y, E.card.w, 110); ctx.restore();
+      ctx.textAlign = 'center'; ctx.fillStyle = accent; ctx.font = 'italic 900 52px system-ui'; ctx.fillText(win ? 'VICTOIRE !' : 'GAME OVER', midX, E.card.y + 62);
+      ctx.fillStyle = '#cbd5e1'; ctx.font = 'italic 15px system-ui'; ctx.fillText(win ? 'Toutes les dimensions sont conquises' : `Vous êtes tombé à la vague ${currentWave} sur ${maxWaves}`, midX, E.card.y + 90);
+      // stats
+      let acc = runStats.shots > 0 ? ((runStats.hits / runStats.shots) * 100).toFixed(0) : 0;
+      let st = [['SCORE', String(score), '#f8fafc'], ['VAGUE', currentWave + '/' + maxWaves, '#38bdf8'], ['ÉLIMINÉS', String(runStats.kills), '#f87171'], ['PRÉCISION', acc + '%', '#4ade80'], ['CRITIQUES', String(runStats.crits), '#facc15']];
+      let sw = (E.card.w - 40 - 4 * 8) / 5;
+      st.forEach((s, i) => { let sx = E.card.x + 20 + i * (sw + 8), sy = E.card.y + 130; ctx.fillStyle = 'rgba(30, 41, 59, 0.85)'; ctx.beginPath(); ctx.roundRect(sx, sy, sw, 70, 10); ctx.fill(); ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 10px system-ui'; ctx.fillText(s[0], sx + sw / 2, sy + 20); ctx.fillStyle = s[2]; ctx.font = '900 24px system-ui'; ctx.fillText(s[1], sx + sw / 2, sy + 52); });
+      // récompenses
+      ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 12px system-ui'; ctx.fillText('RÉCOMPENSES', midX, E.card.y + 232);
+      [[`+${score} V`, '#facc15', 0], [`+${score} XP`, '#c084fc', 1]].forEach(r => { let rw = (E.card.w - 40 - 10) / 2, rx = E.card.x + 20 + r[2] * (rw + 10), ry = E.card.y + 244; ctx.fillStyle = 'rgba(30, 41, 59, 0.85)'; ctx.strokeStyle = r[1]; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(rx, ry, rw, 52, 10); ctx.fill(); ctx.stroke(); ctx.fillStyle = r[1]; ctx.font = 'italic 900 24px system-ui'; ctx.fillText(r[0], rx + rw / 2, ry + 34); });
+      // bouton
+      let b = E.btn, hov = mouse.x >= b.x && mouse.x <= b.x + b.w && mouse.y >= b.y && mouse.y <= b.y + b.h && animAlpha > 0.5;
+      ctx.fillStyle = hov ? '#38bdf8' : '#0ea5e9'; ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 14); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.font = 'italic 900 22px system-ui'; ctx.fillText('RETOUR AU LOBBY', b.x + b.w / 2, b.y + b.h / 2 + 8);
+      ctx.restore(); ctx.textAlign = 'left';
     }
     ctx.restore();
   } catch(error) {
