@@ -193,7 +193,7 @@ window.addEventListener('mousedown', e => {
   if (gameState === 'lobby') {
     let L = lobbyLayout(), hit = (r) => mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h;
     if (hit(L.dimBtn)) { gameState = 'dimselect'; return; }
-    if (hit(L.play)) { gameState = 'playing'; resetGame(); if (startDim > 1 && dimUnlocked(startDim)) enterDimension(startDim); return; }
+    if (hit(L.play)) { let sd = dimUnlocked(startDim) ? startDim : 1; startLoading(1400, () => { gameState = 'playing'; resetGame(); if (sd > 1) enterDimension(sd); }, `DIMENSION ${sd} · ${DIMS[sd - 1].n}`, 'Préparation du champ de bataille'); return; }
     if (hit(L.admin)) { let code = prompt("CODE ADMIN :"); if (code === "1234" || code === "admin") enterSandbox(); else if (code) alert("Code refusé."); return; }
     let skinColors = ['#4ade80', '#f87171', '#22d3ee'];
     for (let i = 0; i < 3; i++) if (hit(L.classes[i])) setClass(skinColors[i]);
@@ -213,6 +213,9 @@ window.addEventListener('mousedown', e => {
         return;
       }
     } else { if (sandboxMode === 'shoot') shoot(); else spawnAdminEnemy(mx, my, sandboxTool); }
+  }
+  else if (gameState === 'loading') {
+    if (loadJob && Date.now() - loadJob.t0 > 600) loadJob.dur = 0;
   }
   else if (gameState === 'dimselect') {
     let D = dimLayout(); for (let i = 0; i < 3; i++) { let c = D.cards[i]; if (dimUnlocked(i + 1) && mx >= c.x && mx <= c.x + c.w && my >= c.y - 8 && my <= c.y + c.h) startDim = i + 1; }
@@ -2231,6 +2234,44 @@ function drawDimSelect() {
   Object.assign(baseCentral, savedBase);
   let b = D.back, hb = mouse.x >= b.x && mouse.x <= b.x + b.w && mouse.y >= b.y && mouse.y <= b.y + b.h; ctx.fillStyle = hb ? '#38bdf8' : '#0ea5e9'; ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 12); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = 'italic 900 16px system-ui'; ctx.textAlign = 'center'; ctx.fillText('VALIDER', b.x + b.w / 2, b.y + 29); ctx.textAlign = 'left';
 }
+// ===== ÉCRAN DE CHARGEMENT =====
+let loadJob = null;
+const LOAD_TIPS = [
+  'Touches 1, 2 et 3 : changez d\'arme instantanément.',
+  'La nuit, les zombies ont +60 % de PV : restez près de la lumière de la base.',
+  'Touche P : ouvre le portail vers la dimension suivante.',
+  'Les mines et les barils explosifs font de gros dégâts de zone.',
+  'Le Tank renvoie les balles ennemies avec ses épines.',
+  'L\'Ingénieur soigne la base passivement : placez-vous près d\'elle.',
+  'Espace : esquive rapide, la jauge se recharge en bas à gauche.',
+  'Les tourelles montent jusqu\'au niveau 3 avec un double canon.'];
+function startLoading(dur, next, title, sub) { loadJob = { t0: Date.now(), dur, next, title: title || 'SURVIVAL BATTLE', sub: sub || 'Chargement…', tip: Math.floor(Math.random() * LOAD_TIPS.length) }; gameState = 'loading'; }
+function drawLoading() {
+  let W = canvas.width, H = canvas.height, j = loadJob; if (!j) { gameState = 'lobby'; return; }
+  let el = Date.now() - j.t0, t = el / 1000, p = Math.min(1, el / j.dur), midX = W / 2, midY = H / 2;
+  if (el >= j.dur) { let n = j.next; loadJob = null; if (n) n(); return; }
+  let g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#020617'); g.addColorStop(0.55, '#1e1b4b'); g.addColorStop(1, '#0c4a6e'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // grille en perspective + particules
+  ctx.strokeStyle = 'rgba(56,189,248,0.12)'; ctx.lineWidth = 1; ctx.beginPath(); let hy = H * 0.62;
+  for (let i = -12; i <= 12; i++) { ctx.moveTo(midX + i * 30, hy); ctx.lineTo(midX + i * 160, H); }
+  for (let k = 0; k < 9; k++) { let yy = hy + Math.pow((k + (t * 0.7) % 1) / 9, 2) * (H - hy); ctx.moveTo(0, yy); ctx.lineTo(W, yy); } ctx.stroke();
+  for (let i = 0; i < 40; i++) { let sx = (i * 137.5) % W, sy = ((i * 71 - t * (14 + i % 5 * 6)) % H + H) % H; ctx.fillStyle = `rgba(165,180,252,${0.15 + (i % 4) * 0.08})`; ctx.beginPath(); ctx.arc(sx, sy, 1 + i % 3, 0, Math.PI * 2); ctx.fill(); }
+  // anneau tournant
+  let rr = Math.min(70, H * 0.12), cy = midY - H * 0.12;
+  ctx.save(); ctx.translate(midX, cy); ctx.fillStyle = 'rgba(56,189,248,0.1)'; ctx.beginPath(); ctx.arc(0, 0, rr * 1.7, 0, Math.PI * 2); ctx.fill();
+  ctx.lineCap = 'round'; for (let k = 0; k < 3; k++) { ctx.strokeStyle = ['#38bdf8', '#a855f7', '#facc15'][k]; ctx.lineWidth = 6 - k; ctx.beginPath(); ctx.arc(0, 0, rr - k * 14, t * (2 - k * 0.7) * (k % 2 ? -1 : 1), t * (2 - k * 0.7) * (k % 2 ? -1 : 1) + 3.2 - k * 0.5); ctx.stroke(); }
+  ctx.fillStyle = '#f8fafc'; ctx.font = `900 ${Math.round(rr * 0.5)}px system-ui`; ctx.textAlign = 'center'; ctx.fillText(Math.floor(p * 100) + '%', 0, rr * 0.18); ctx.restore();
+  // titre
+  ctx.textAlign = 'center'; let ty = cy + rr + 62; ctx.fillStyle = '#f8fafc'; ctx.font = `italic 900 ${Math.min(52, W / 14)}px system-ui`; ctx.fillText(j.title, midX, ty);
+  ctx.fillStyle = '#38bdf8'; ctx.font = 'bold 14px system-ui'; ctx.fillText(j.sub.toUpperCase() + '.'.repeat(Math.floor(t * 3) % 4), midX, ty + 28);
+  // barre segmentée
+  let bw = Math.min(520, W - 80), bx = midX - bw / 2, by = ty + 56, segs = 24, sw = (bw - (segs - 1) * 4) / segs, fill = p * segs;
+  for (let i = 0; i < segs; i++) { let on = i < Math.floor(fill), part = i === Math.floor(fill) ? fill - i : 0; ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.beginPath(); ctx.roundRect(bx + i * (sw + 4), by, sw, 14, 4); ctx.fill(); if (on || part > 0) { ctx.fillStyle = on ? '#38bdf8' : `rgba(56,189,248,${part})`; ctx.beginPath(); ctx.roundRect(bx + i * (sw + 4), by, sw, 14, 4); ctx.fill(); } }
+  // astuce
+  let ti = (j.tip + Math.floor(t / 2.2)) % LOAD_TIPS.length; ctx.fillStyle = '#facc15'; ctx.font = 'bold 11px system-ui'; ctx.fillText('ASTUCE', midX, by + 48); ctx.fillStyle = '#cbd5e1'; ctx.font = 'italic 15px system-ui'; ctx.fillText(LOAD_TIPS[ti], midX, by + 70);
+  if (el > 700) { ctx.fillStyle = 'rgba(148,163,184,' + (0.4 + Math.sin(t * 4) * 0.2) + ')'; ctx.font = '12px system-ui'; ctx.fillText('Cliquez pour passer', midX, H - 28); }
+  ctx.textAlign = 'left';
+}
 function lobbyItems() {
   return [ { name: 'VITESSE', key: 'speed', cost: Math.floor(250 * Math.pow(1.6, upgrades.speed)), max: 5 }, { name: 'SANTÉ', key: 'hp', cost: Math.floor(300 * Math.pow(1.6, upgrades.hp)), max: 5 }, { name: 'SANTÉ BASE', key: 'baseHP', cost: Math.floor(350 * Math.pow(1.6, upgrades.baseHP)), max: 5 }, { name: 'DÉGÂTS', key: 'damage', cost: Math.floor(400 * Math.pow(1.7, upgrades.damage)), max: 5 }, { name: 'POMPE', key: 'shotgunLevel', cost: Math.floor(800 * Math.pow(2.0, upgrades.shotgunLevel)), max: 3 }, { name: 'ROQUETTES', key: 'rocketLevel', cost: Math.floor(1200 * Math.pow(2.2, upgrades.rocketLevel)), max: 3 } ];
 }
@@ -2260,6 +2301,7 @@ function draw() {
     ctx.save(); let midX = canvas.width / 2;
     if (shakeTimer > 0 && gameState !== 'paused') { shakeTimer--; let offsetX = (Math.random() - 0.5) * shakeIntensity; let offsetY = (Math.random() - 0.5) * shakeIntensity; ctx.translate(offsetX, offsetY); }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (gameState === 'loading') { drawLoading(); ctx.restore(); return; }
     if (gameState === 'lobby') { drawFortniteLobby(); ctx.restore(); return; }
     if (gameState === 'dimselect') { drawFortniteLobby(); drawDimSelect(); ctx.restore(); return; }
 
@@ -2467,6 +2509,7 @@ function loop(now) {
   }
   requestAnimationFrame(loop);
 }
+startLoading(2400, () => { gameState = 'lobby'; }, 'SURVIVAL BATTLE', 'Chargement du jeu');
 loop();
 </script>
 </body>
