@@ -198,7 +198,6 @@ window.addEventListener('mousedown', e => {
     let L = lobbyLayout(), hit = (r) => mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h;
     if (hit(L.dimBtn)) { gameState = 'dimselect'; return; }
     if (hit(L.play)) { let sd = dimUnlocked(startDim) ? startDim : 1; startLoading(1400, () => { gameState = 'playing'; resetGame(); if (sd > 1) enterDimension(sd); }, `DIMENSION ${sd} · ${DIMS[sd - 1].n}`, 'Préparation du champ de bataille'); return; }
-    if (hit(L.admin)) { adminLogin(); return; }
     let skinColors = ['#4ade80', '#f87171', '#22d3ee'];
     for (let i = 0; i < 3; i++) if (hit(L.classes[i])) setClass(skinColors[i]);
     if (hit(L.arrows[0])) cycleClass(-1); if (hit(L.arrows[1])) cycleClass(1);
@@ -267,18 +266,35 @@ async function adminHash(pw) {
   let bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' }, key, 256);
   return Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
-async function adminLogin() {
-  let lock = 0, fails = 0; try { lock = +localStorage.getItem('adminLock') || 0; fails = +localStorage.getItem('adminFails') || 0; } catch (e) {}
-  if (Date.now() < lock) { alert('Accès admin bloqué. Réessayez dans ' + Math.ceil((lock - Date.now()) / 60000) + ' min.'); return; }
-  let code = prompt('MOT DE PASSE ADMIN :'); if (!code) return;
-  if (!(window.crypto && crypto.subtle)) { alert('Connexion admin impossible sur cette page (contexte non sécurisé).'); return; }
-  let ok = false; try { let hh = await adminHash(code.trim()), diff = hh.length ^ ADMIN_HASH.length; for (let i = 0; i < ADMIN_HASH.length; i++) diff |= hh.charCodeAt(i) ^ ADMIN_HASH.charCodeAt(i); ok = diff === 0; } catch (e) {}
-  if (ok) { try { localStorage.removeItem('adminFails'); localStorage.removeItem('adminLock'); } catch (e) {} enterSandbox(); return; }
-  fails++; let msg = 'Mot de passe incorrect.';
-  if (fails >= 3) { fails = 0; try { localStorage.setItem('adminLock', Date.now() + 10 * 60000); } catch (e) {} msg += ' Trop d\'essais : accès bloqué 10 minutes.'; }
-  else msg += ' (' + (3 - fails) + ' essai' + (3 - fails > 1 ? 's' : '') + ' restant' + (3 - fails > 1 ? 's' : '') + ')';
-  try { localStorage.setItem('adminFails', fails); } catch (e) {}
-  alert(msg);
+const ADMIN_ROUTE_HASH = '024866589abdbe91942440237131e5c4d65c931ac34abe866645d9cfe426ae18'; // empreinte SHA-256 de l'adresse secrète (l'adresse elle-même n'est pas dans le code)
+async function sha256hex(txt) { let b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt)); return Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2, '0')).join(''); }
+async function checkAdminRoute() {
+  try { let tok = decodeURIComponent((location.hash || '').slice(1)); if (!tok || !(window.crypto && crypto.subtle)) return; if (await sha256hex(tok) === ADMIN_ROUTE_HASH) showAdminLogin(); } catch (e) {}
+}
+window.addEventListener('hashchange', checkAdminRoute);
+function showAdminLogin() {
+  if (document.getElementById('adminGate')) return;
+  let d = document.createElement('div'); d.id = 'adminGate';
+  d.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 30%,#312e81,#020617 70%);font-family:system-ui,sans-serif;';
+  d.innerHTML = '<form id="adminForm" autocomplete="off" style="width:min(380px,90vw);background:rgba(15,23,42,.95);border:2px solid #a855f7;border-radius:20px;padding:32px 28px;box-shadow:0 20px 60px rgba(0,0,0,.6);text-align:center;color:#f8fafc">' +
+    '<div style="font-size:44px;margin-bottom:6px">🔐</div><div style="font:italic 900 26px system-ui;color:#facc15;margin-bottom:4px">ACCÈS ADMIN</div><div style="color:#94a3b8;font-size:13px;margin-bottom:22px">Zone réservée. Entrez le mot de passe.</div>' +
+    '<input id="adminPw" type="password" placeholder="Mot de passe" autocomplete="off" style="width:100%;box-sizing:border-box;padding:14px;border-radius:12px;border:2px solid #334155;background:#0b1020;color:#fff;font-size:16px;outline:none;text-align:center;margin-bottom:12px">' +
+    '<div id="adminMsg" style="min-height:20px;color:#f87171;font-size:13px;margin-bottom:10px"></div>' +
+    '<button type="submit" style="width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(#fde047,#ca8a04);color:#020617;font:italic 900 18px system-ui;cursor:pointer">ENTRER</button>' +
+    '<button type="button" id="adminCancel" style="margin-top:12px;background:none;border:none;color:#64748b;cursor:pointer;font-size:13px">Annuler</button></form>';
+  document.body.appendChild(d);
+  let pw = d.querySelector('#adminPw'), msg = d.querySelector('#adminMsg'); setTimeout(() => pw.focus(), 50);
+  const close = () => { d.remove(); try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} };
+  d.querySelector('#adminCancel').onclick = close;
+  d.querySelector('#adminForm').onsubmit = async (ev) => {
+    ev.preventDefault(); let lock = 0, fails = 0; try { lock = +localStorage.getItem('adminLock') || 0; fails = +localStorage.getItem('adminFails') || 0; } catch (e) {}
+    if (Date.now() < lock) { msg.textContent = 'Accès bloqué. Réessayez dans ' + Math.ceil((lock - Date.now()) / 60000) + ' min.'; return; }
+    let code = pw.value.trim(); if (!code) return; let ok = false;
+    try { let hh = await adminHash(code), diff = hh.length ^ ADMIN_HASH.length; for (let i = 0; i < ADMIN_HASH.length; i++) diff |= hh.charCodeAt(i) ^ ADMIN_HASH.charCodeAt(i); ok = diff === 0; } catch (e) {}
+    if (ok) { try { localStorage.removeItem('adminFails'); localStorage.removeItem('adminLock'); } catch (e) {} close(); enterSandbox(); return; }
+    fails++; pw.value = ''; if (fails >= 3) { fails = 0; try { localStorage.setItem('adminLock', Date.now() + 10 * 60000); } catch (e) {} msg.textContent = 'Trop d\'essais : accès bloqué 10 minutes.'; } else msg.textContent = 'Mot de passe incorrect. ' + (3 - fails) + ' essai(s) restant(s).';
+    try { localStorage.setItem('adminFails', fails); } catch (e) {}
+  };
 }
 function enterSandbox() {
     gameState = 'admin_sandbox'; currentDimension = 4; initMapEnvironment(4); portal.active = false; activeBoss = null;
@@ -2294,10 +2310,6 @@ function drawFortniteLobby() {
   let playGrad = ctx.createLinearGradient(0, pl.y, 0, pl.y + pl.h); playGrad.addColorStop(0, hoverPlay ? '#fef08a' : '#fde047'); playGrad.addColorStop(1, hoverPlay ? '#eab308' : '#ca8a04');
   ctx.fillStyle = playGrad; ctx.beginPath(); ctx.roundRect(pl.x, pl.y, pl.w, pl.h, 14); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(pl.x + 3, pl.y + 3, pl.w - 6, pl.h - 6, 11); ctx.stroke();
   ctx.fillStyle = '#020617'; ctx.textAlign = 'center'; ctx.font = 'italic 900 34px system-ui'; ctx.fillText('JOUER !', pl.x + pl.w / 2, pl.y + pl.h / 2 + 12); ctx.textAlign = 'left';
-
-  // ---- Bouton Admin ----
-  let ad = L.admin; ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(ad.x, ad.y, ad.w, ad.h, 8); ctx.fill();
-  ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 13px system-ui'; ctx.textAlign = 'center'; ctx.fillText('ADMIN', ad.x + ad.w / 2, ad.y + ad.h / 2 + 5); ctx.textAlign = 'left';
 }
 
 // Disposition du lobby : une seule source pour le dessin ET les clics
@@ -2711,6 +2723,7 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 startLoading(2400, () => { gameState = 'lobby'; }, 'SURVIVAL BATTLE', 'Chargement du jeu');
+checkAdminRoute();
 loop();
 </script>
 </body>
