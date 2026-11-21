@@ -165,6 +165,7 @@ function spawnParticles(x, y, color, count, speed) {
 // --- INPUTS ---
 window.addEventListener('keydown', e => {
   if (!e.key) return; keys[e.key.toLowerCase()] = true;
+  if (e.code === 'KeyP' && gameState === 'playing') openPortal();
   if (gameState === 'reward' && ['1','2','3'].includes(e.key)) pickReward(+e.key - 1);
   if (e.code === 'Escape' && (gameState === 'playing' || gameState === 'paused' || gameState === 'admin_sandbox')) {
     gameState = (gameState === 'paused') ? (currentDimension===4?'admin_sandbox':'playing') : 'paused';
@@ -266,6 +267,15 @@ function setupWave() {
   waveInProgress = true;
 }
 
+// Ouvre le portail vers la dimension suivante (fin des vagues, ou touche P)
+function openPortal() {
+  if (currentDimension >= 3 || portal.active) return;
+  waveInProgress = false; enemies = []; enemyBullets = []; activeBoss = null; reward_cleanup();
+  portal.active = true; portal.targetDim = currentDimension + 1; portal.x = canvas.width / 2; portal.y = Math.max(120, canvas.height * 0.22);
+  playSound('portal'); triggerShake(15, 30); dimFlashAlpha = 0.5;
+  addFloatingText(portal.x, portal.y + 90, '🌀 PORTAIL OUVERT !', '#e879f9', true);
+}
+function reward_cleanup() { currentRewards = []; }
 function enterDimension(dim) {
   playSound('portal'); triggerShake(25, 45); dimFlashAlpha = 1.0; currentDimension = dim; currentWave = 1; portal.active = false;
   initMapEnvironment(dim); baseCentral.maxHp = getBaseMaxHp(); baseCentral.hp = baseCentral.maxHp; player.x = canvas.width/2; player.y = canvas.height/2 + (dim===3?160:135); player.hp = getPlayerMaxHp();
@@ -392,7 +402,7 @@ function update() {
     if (waveTimer > spawnInterval && enemiesSpawnedInWave < enemiesTotalInWave) { spawnEnemy(); waveTimer = 0; }
     if (enemiesSpawnedInWave >= enemiesTotalInWave && enemies.length === 0) {
       if (currentWave >= maxWaves) {
-        if (currentDimension < 3) { waveInProgress = false; portal.active = true; portal.targetDim = currentDimension + 1; portal.x = canvas.width / 2; portal.y = Math.max(120, canvas.height * 0.22); playSound('portal'); triggerShake(15, 30); }
+        if (currentDimension < 3) openPortal();
         else { endGame(true); }
       } else { waveInProgress = false; openRewardSelection(); }
     }
