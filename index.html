@@ -183,23 +183,14 @@ window.addEventListener('mousedown', e => {
   initAudio(); const r = canvas.getBoundingClientRect(); let mx = e.clientX - r.left; let my = e.clientY - r.top;
 
   if (gameState === 'lobby') {
-    let podX = Math.min(canvas.width*0.35, 400); let playW=240, playH=80, playX=canvas.width-playW-40, playY=canvas.height-playH-40;
-    if (mx >= playX && mx <= playX+playW && my >= playY && my <= playY+playH) { gameState = 'playing'; resetGame(); return; }
-
-    // ADMIN BUTTON
-    if (mx >= 10 && mx <= 110 && my >= canvas.height - 50 && my <= canvas.height - 10) {
-        let code = prompt("CODE ADMIN :"); if(code==="1234"||code==="admin") enterSandbox(); else if(code) alert("Code refusé."); return;
-    }
-
+    let L = lobbyLayout(), hit = (r) => mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h;
+    if (hit(L.play)) { gameState = 'playing'; resetGame(); return; }
+    if (hit(L.admin)) { let code = prompt("CODE ADMIN :"); if (code === "1234" || code === "admin") enterSandbox(); else if (code) alert("Code refusé."); return; }
     let skinColors = ['#4ade80', '#f87171', '#22d3ee'];
-    for (let i = 0; i < 3; i++) { if (Math.hypot(mx - (podX-70 + i*70), my - (canvas.height*0.6+180)) <= 22) { player.color = skinColors[i]; try {localStorage.setItem('playerColor', player.color);}catch(e){} } }
-
-    let upX = canvas.width - 450; if (upX < podX + 180) upX = podX + 180;
-    let items = [ { key:'speed', cost:Math.floor(250*Math.pow(1.6,upgrades.speed)), max:5 }, { key:'hp', cost:Math.floor(300*Math.pow(1.6,upgrades.hp)), max:5 }, { key:'baseHP', cost:Math.floor(350*Math.pow(1.6,upgrades.baseHP)), max:5 }, { key:'damage', cost:Math.floor(400*Math.pow(1.7,upgrades.damage)), max:5 }, { key:'shotgunLevel', cost:Math.floor(800*Math.pow(2.0,upgrades.shotgunLevel)), max:3 }, { key:'rocketLevel', cost:Math.floor(1200*Math.pow(2.2,upgrades.rocketLevel)), max:3 } ];
+    for (let i = 0; i < 3; i++) if (hit(L.classes[i])) { player.color = skinColors[i]; try { localStorage.setItem('playerColor', player.color); } catch (e) {} }
+    let items = lobbyItems();
     for (let i = 0; i < items.length; i++) {
-      if (mx >= upX+260 && mx <= upX+370 && my >= 90+i*55+8 && my <= 90+i*55+42) {
-        if (money >= items[i].cost && upgrades[items[i].key] < items[i].max) { money -= items[i].cost; upgrades[items[i].key]++; playSound('powerup'); try {localStorage.setItem('survivalMoney', money); localStorage.setItem(UPKEYS[items[i].key], upgrades[items[i].key]);}catch(e){} }
-      }
+      if (hit(L.ups[i].btn) && money >= items[i].cost && upgrades[items[i].key] < items[i].max) { money -= items[i].cost; upgrades[items[i].key]++; playSound('powerup'); try { localStorage.setItem('survivalMoney', money); localStorage.setItem(UPKEYS[items[i].key], upgrades[items[i].key]); } catch (e) {} }
     }
   }
   else if (gameState === 'admin_sandbox') {
@@ -1680,50 +1671,89 @@ function drawFortniteLobby() {
 
   for (let p of lobbyParticles) { p.y -= p.speedY; p.x += p.speedX; if (p.y < 0) { p.y = canvas.height; p.x = Math.random() * canvas.width; } ctx.fillStyle = p.color; ctx.globalAlpha = p.alpha * 0.3; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius * 2.5, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = p.alpha; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill(); } ctx.globalAlpha = 1;
 
-  ctx.fillStyle = 'rgba(2, 6, 23, 0.7)'; ctx.fillRect(0, 0, canvas.width, 60); ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, 60); ctx.lineTo(canvas.width, 60); ctx.stroke(); ctx.shadowColor = '#000'; ctx.shadowBlur = 6; ctx.fillStyle = '#f8fafc'; ctx.font = 'italic 900 28px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.fillText('SURVIVAL BATTLE', 30, 40); ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; ctx.beginPath(); ctx.roundRect(canvas.width - 200, 12, 170, 36, 6); ctx.fill(); ctx.shadowColor = '#0ea5e9'; ctx.shadowBlur = 10; ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(canvas.width - 180, 30, 10, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#FFF'; ctx.font = 'bold 12px system-ui'; ctx.fillText('V', canvas.width - 184, 34); ctx.shadowBlur = 0; ctx.fillStyle = '#f8fafc'; ctx.font = 'italic 900 20px system-ui, sans-serif'; ctx.textAlign = 'right'; ctx.fillText(money.toString(), canvas.width - 45, 36); let lvlInfo = getLevelInfo(); let ratio = lvlInfo.level === MAX_LEVEL ? 1 : (lvlInfo.currentXP / lvlInfo.requiredXP); let barW = 300; let barX = canvas.width / 2 - barW / 2; ctx.fillStyle = '#1e293b'; ctx.fillRect(barX, 26, barW, 10); ctx.fillStyle = '#a855f7'; ctx.shadowColor = '#a855f7'; ctx.shadowBlur = 8; ctx.fillRect(barX, 26, barW * ratio, 10); ctx.shadowBlur = 0; ctx.fillStyle = '#f8fafc'; ctx.font = 'italic 900 16px system-ui'; ctx.textAlign = 'right'; ctx.fillText(`LVL ${lvlInfo.level}`, barX - 15, 36); ctx.textAlign = 'left'; ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 12px system-ui'; ctx.fillText(lvlInfo.level === MAX_LEVEL ? 'MAX' : `${lvlInfo.currentXP}/${lvlInfo.requiredXP}`, barX + barW + 15, 35);
+  ctx.fillStyle = 'rgba(2, 6, 23, 0.7)'; ctx.fillRect(0, 0, canvas.width, 60); ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, 60); ctx.lineTo(canvas.width, 60); ctx.stroke(); ctx.shadowColor = '#000'; ctx.shadowBlur = 6; ctx.fillStyle = '#f8fafc'; ctx.font = 'italic 900 28px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.fillText('SURVIVAL BATTLE', 30, 40); ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; ctx.beginPath(); ctx.roundRect(canvas.width - 200, 12, 170, 36, 6); ctx.fill(); ctx.shadowColor = '#0ea5e9'; ctx.shadowBlur = 10; ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(canvas.width - 180, 30, 10, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#FFF'; ctx.font = 'bold 12px system-ui'; ctx.fillText('V', canvas.width - 184, 34); ctx.shadowBlur = 0; ctx.fillStyle = '#f8fafc'; ctx.font = 'italic 900 20px system-ui, sans-serif'; ctx.textAlign = 'right'; ctx.fillText(money.toString(), canvas.width - 45, 36); let lvlInfo = getLevelInfo(); let ratio = lvlInfo.level === MAX_LEVEL ? 1 : (lvlInfo.currentXP / lvlInfo.requiredXP); let barW = Math.max(120, Math.min(300, canvas.width - 380 - 330)); let barX = Math.max(canvas.width / 2 - barW / 2, 380); ctx.fillStyle = '#1e293b'; ctx.fillRect(barX, 26, barW, 10); ctx.fillStyle = '#a855f7'; ctx.shadowColor = '#a855f7'; ctx.shadowBlur = 8; ctx.fillRect(barX, 26, barW * ratio, 10); ctx.shadowBlur = 0; ctx.fillStyle = '#f8fafc'; ctx.font = 'italic 900 16px system-ui'; ctx.textAlign = 'right'; ctx.fillText(`LVL ${lvlInfo.level}`, barX - 15, 36); ctx.textAlign = 'left'; ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 12px system-ui'; ctx.fillText(lvlInfo.level === MAX_LEVEL ? 'MAX' : `${lvlInfo.currentXP}/${lvlInfo.requiredXP}`, barX + barW + 15, 35);
 
-  let podiumX = Math.min(canvas.width * 0.35, 400); let podiumY = canvas.height * 0.6;
-  ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.beginPath(); ctx.ellipse(podiumX, podiumY + 115, 170, 45, 0, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.ellipse(podiumX, podiumY + 105, 150, 40, 0, 0, Math.PI*2); ctx.fill(); ctx.fillRect(podiumX - 150, podiumY + 85, 300, 20); ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.ellipse(podiumX, podiumY + 85, 150, 40, 0, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 20; ctx.shadowColor = player.color; ctx.strokeStyle = player.color; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(podiumX, podiumY + 85, 135, 35, 0, 0, Math.PI*2); ctx.stroke(); ctx.shadowBlur = 0;
-  ctx.save(); ctx.beginPath(); ctx.ellipse(podiumX, podiumY + 85, 135, 35, 0, 0, Math.PI*2); ctx.clip(); ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; for (let i = -140; i <= 140; i += 20) { ctx.beginPath(); ctx.moveTo(podiumX + i, podiumY + 40); ctx.lineTo(podiumX + i, podiumY + 130); ctx.stroke(); ctx.beginPath(); ctx.moveTo(podiumX - 140, podiumY + 85 + i*0.3); ctx.lineTo(podiumX + 140, podiumY + 85 + i*0.3); ctx.stroke(); } ctx.restore();
-  let scanY = Math.sin(Date.now() * 0.002) * 50; ctx.strokeStyle = player.color; ctx.globalAlpha = 0.4; ctx.lineWidth = 3; ctx.shadowBlur = 10; ctx.shadowColor = player.color; ctx.beginPath(); ctx.ellipse(podiumX, podiumY + 30 + scanY, 140, 38, 0, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1.0; ctx.shadowBlur = 0;
-
+  let L = lobbyLayout(); let podiumX = L.podX, podiumY = L.podY;
   let pClass = CLASSES[player.color] || CLASSES['#4ade80'];
-  ctx.fillStyle = '#f8fafc'; ctx.font = '900 24px system-ui'; ctx.textAlign = 'center'; ctx.fillText(pClass.name, podiumX, podiumY - 162); ctx.fillStyle = '#94a3b8'; ctx.font = 'italic 14px system-ui'; ctx.fillText(pClass.desc, podiumX, podiumY - 142);
-
+  // ---- Piédestal ----
+  ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.beginPath(); ctx.ellipse(podiumX, podiumY + 115, 170, 45, 0, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.ellipse(podiumX, podiumY + 105, 150, 40, 0, 0, Math.PI*2); ctx.fill(); ctx.fillRect(podiumX - 150, podiumY + 85, 300, 20); ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.ellipse(podiumX, podiumY + 85, 150, 40, 0, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = player.color; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(podiumX, podiumY + 85, 135, 35, 0, 0, Math.PI*2); ctx.stroke();
+  ctx.save(); ctx.beginPath(); ctx.ellipse(podiumX, podiumY + 85, 135, 35, 0, 0, Math.PI*2); ctx.clip(); ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; for (let i = -140; i <= 140; i += 20) { ctx.beginPath(); ctx.moveTo(podiumX + i, podiumY + 40); ctx.lineTo(podiumX + i, podiumY + 130); ctx.stroke(); ctx.beginPath(); ctx.moveTo(podiumX - 140, podiumY + 85 + i*0.3); ctx.lineTo(podiumX + 140, podiumY + 85 + i*0.3); ctx.stroke(); } ctx.restore();
+  let scanY = Math.sin(Date.now() * 0.002) * 50; ctx.strokeStyle = player.color; ctx.globalAlpha = 0.4; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(podiumX, podiumY + 30 + scanY, 140, 38, 0, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1.0;
   drawLobbyHero(podiumX, podiumY);
+  // Nom de la classe au-dessus du héros
+  ctx.textAlign = 'center'; ctx.fillStyle = '#f8fafc'; ctx.font = '900 26px system-ui'; ctx.fillText(pClass.name, podiumX, podiumY - 168);
+  ctx.fillStyle = player.color; ctx.fillRect(podiumX - 28, podiumY - 158, 56, 3);
 
-  let skinStartX = podiumX - 70; let skinY = podiumY + 180;
-  ctx.fillStyle = '#f8fafc'; ctx.font = 'italic 900 18px system-ui'; ctx.textAlign = 'center'; ctx.fillText('CHOIX DE CLASSE', podiumX, skinY - 40);
-  let skinColors = ['#4ade80', '#f87171', '#22d3ee'];
-  for (let i = 0; i < skinColors.length; i++) {
-    let cx = skinStartX + (i * 70); let isSelected = player.color === skinColors[i];
-    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.arc(cx+3, skinY+4, 22, 0, Math.PI * 2); ctx.fill();
-    ctx.shadowBlur = isSelected ? 20 : 0; ctx.shadowColor = skinColors[i]; ctx.fillStyle = skinColors[i]; ctx.beginPath(); ctx.arc(cx, skinY, 24, 0, Math.PI * 2); ctx.fill();
-    if (isSelected) { ctx.strokeStyle = '#f8fafc'; ctx.lineWidth = 4; ctx.stroke(); ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.arc(cx, skinY, 8, 0, Math.PI*2); ctx.fill(); } ctx.shadowBlur = 0;
+  const panel = (x, y, w, h) => { ctx.fillStyle = 'rgba(2, 6, 23, 0.72)'; ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(x, y, w, h, 16); ctx.fill(); ctx.stroke(); };
+  // ---- Panneau gauche : choix de classe ----
+  panel(L.left.x, L.left.y, L.left.w, L.left.h);
+  ctx.textAlign = 'left'; ctx.fillStyle = '#f8fafc'; ctx.font = 'italic 900 20px system-ui'; ctx.fillText('CLASSE', L.left.x + 20, L.left.y + 34);
+  let classKeys = ['#4ade80', '#f87171', '#22d3ee'];
+  const statBar = (x, y, w, label, v, col) => { ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 10px system-ui'; ctx.textAlign = 'left'; ctx.fillText(label, x, y + 8); ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.beginPath(); ctx.roundRect(x + 34, y, w - 34, 8, 4); ctx.fill(); ctx.fillStyle = col; ctx.beginPath(); ctx.roundRect(x + 34, y, Math.max(6, (w - 34) * Math.min(1, v)), 8, 4); ctx.fill(); };
+  for (let i = 0; i < 3; i++) {
+    let c = L.classes[i], col = classKeys[i], cl = CLASSES[col], sel = player.color === col;
+    let hov = mouse.x >= c.x && mouse.x <= c.x + c.w && mouse.y >= c.y && mouse.y <= c.y + c.h;
+    ctx.fillStyle = sel ? 'rgba(30, 41, 59, 0.95)' : (hov ? 'rgba(30, 41, 59, 0.8)' : 'rgba(15, 23, 42, 0.8)'); ctx.beginPath(); ctx.roundRect(c.x, c.y, c.w, c.h, 12); ctx.fill();
+    ctx.strokeStyle = sel ? col : 'rgba(255,255,255,0.1)'; ctx.lineWidth = sel ? 3 : 1.5; ctx.stroke();
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(c.x + 30, c.y + c.h / 2, 16, 0, Math.PI * 2); ctx.fill();
+    if (sel) { ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.arc(c.x + 30, c.y + c.h / 2, 6, 0, Math.PI * 2); ctx.fill(); }
+    ctx.textAlign = 'left'; ctx.fillStyle = '#f8fafc'; ctx.font = 'italic 900 16px system-ui'; ctx.fillText(cl.name, c.x + 58, c.y + 26);
+    let bx = c.x + 58, bw = c.w - 58 - 14;
+    statBar(bx, c.y + 36, bw, 'VIT', cl.spd / 1.4, '#4ade80'); statBar(bx, c.y + 50, bw, 'VIE', cl.hp / 1.6, '#f87171'); statBar(bx, c.y + 64, bw, 'DÉG', cl.dmg / 1.3, '#facc15');
   }
+  // Compétence de la classe
+  ctx.textAlign = 'left'; ctx.fillStyle = '#94a3b8'; ctx.font = 'italic 12px system-ui';
+  let words = pClass.boost.replace('BOOST: ', '').split(' '), line = '', ly = L.classes[2].y + L.classes[2].h + 26;
+  ctx.fillStyle = '#facc15'; ctx.font = 'bold 11px system-ui'; ctx.fillText('BONUS', L.left.x + 20, ly - 2); ctx.fillStyle = '#cbd5e1'; ctx.font = '13px system-ui'; ctx.fillText(pClass.boost.replace('BOOST: ', ''), L.left.x + 20, ly + 16);
 
-  // Bouton Admin
-  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(10, canvas.height - 50, 100, 40, 8); ctx.fill();
-  ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 14px system-ui'; ctx.fillText('ADMIN', 60, canvas.height - 25);
-
-  let upX = canvas.width - 450; if(upX < podiumX + 180) upX = podiumX + 180; let startY = 90;
-  ctx.fillStyle = 'rgba(2, 6, 23, 0.6)'; ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(upX - 20, startY - 40, 420, 380, 16); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#facc15'; ctx.font = 'italic 900 26px system-ui'; ctx.textAlign = 'left'; ctx.shadowColor = '#eab308'; ctx.shadowBlur = 10; ctx.fillText('AMÉLIORATIONS', upX, startY - 5); ctx.shadowBlur = 0;
-  let items = [ { name: 'VITESSE', key: 'speed', cost: Math.floor(250 * Math.pow(1.6, upgrades.speed)), max: 5 }, { name: 'SANTÉ', key: 'hp', cost: Math.floor(300 * Math.pow(1.6, upgrades.hp)), max: 5 }, { name: 'SANTÉ BASE', key: 'baseHP', cost: Math.floor(350 * Math.pow(1.6, upgrades.baseHP)), max: 5 }, { name: 'DÉGÂTS', key: 'damage', cost: Math.floor(400 * Math.pow(1.7, upgrades.damage)), max: 5 }, { name: 'POMPE', key: 'shotgunLevel', cost: Math.floor(800 * Math.pow(2.0, upgrades.shotgunLevel)), max: 3 }, { name: 'ROQUETTES', key: 'rocketLevel', cost: Math.floor(1200 * Math.pow(2.2, upgrades.rocketLevel)), max: 3 } ];
-
+  // ---- Panneau droit : améliorations ----
+  panel(L.right.x, L.right.y, L.right.w, L.right.h);
+  ctx.textAlign = 'left'; ctx.fillStyle = '#facc15'; ctx.font = 'italic 900 22px system-ui'; ctx.fillText('AMÉLIORATIONS', L.right.x + 20, L.right.y + 34);
+  let items = lobbyItems();
   for (let i = 0; i < items.length; i++) {
-    let item = items[i]; let lvl = upgrades[item.key]; let isMax = lvl >= item.max; let itemY = startY + i * 55;
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.8)'; ctx.beginPath(); ctx.roundRect(upX, itemY, 380, 45, 8); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1.5; ctx.stroke();
-    let fillRatio = lvl / item.max; ctx.fillStyle = 'rgba(56, 189, 248, 0.15)'; ctx.beginPath(); ctx.roundRect(upX, itemY, 380 * fillRatio, 45, 8); ctx.fill();
-    ctx.fillStyle = '#f8fafc'; ctx.font = 'italic 900 16px system-ui'; ctx.fillText(item.name, upX + 15, itemY + 28); ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 12px system-ui'; ctx.fillText(`NIVEAU ${lvl}/${item.max}`, upX + 130, itemY + 27);
-    let btnX = upX + 260; let btnY = itemY + 8; let btnW = 110; let btnH = 30; let canBuy = !isMax && money >= item.cost; let isHoverBtn = mouse.x >= btnX && mouse.x <= btnX + btnW && mouse.y >= btnY && mouse.y <= btnY + btnH;
-    ctx.save(); ctx.translate(btnX, btnY); ctx.transform(1, 0, -0.1, 1, 0, 0); ctx.shadowBlur = canBuy && isHoverBtn ? 10 : 0; ctx.shadowColor = '#facc15'; ctx.fillStyle = isMax ? '#334155' : (canBuy ? (isHoverBtn ? '#eab308' : '#facc15') : '#475569'); ctx.beginPath(); ctx.roundRect(0, 0, btnW, btnH, 4); ctx.fill(); ctx.shadowBlur = 0; ctx.restore();
-    ctx.fillStyle = isMax ? '#94a3b8' : (canBuy ? '#020617' : '#94a3b8'); ctx.font = 'italic 900 14px system-ui'; ctx.textAlign = 'center'; ctx.fillText(isMax ? 'MAX' : `${item.cost} V`, btnX + btnW/2, btnY + 20); ctx.textAlign = 'left';
+    let item = items[i], r = L.ups[i]; let lvl = upgrades[item.key]; let isMax = lvl >= item.max;
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)'; ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 10); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#f8fafc'; ctx.font = 'italic 900 15px system-ui'; ctx.textAlign = 'left'; ctx.fillText(item.name, r.x + 16, r.y + r.h / 2 - 4);
+    // pastilles de niveau
+    let pipW = Math.min(22, 120 / item.max - 4);
+    for (let p = 0; p < item.max; p++) { ctx.fillStyle = p < lvl ? '#38bdf8' : 'rgba(255,255,255,0.12)'; ctx.beginPath(); ctx.roundRect(r.x + 16 + p * (pipW + 4), r.y + r.h / 2 + 5, pipW, 7, 3); ctx.fill(); }
+    ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 11px system-ui'; ctx.fillText(`${lvl}/${item.max}`, r.x + 16 + item.max * (pipW + 4) + 4, r.y + r.h / 2 + 12);
+    let b = r.btn; let canBuy = !isMax && money >= item.cost; let hov = mouse.x >= b.x && mouse.x <= b.x + b.w && mouse.y >= b.y && mouse.y <= b.y + b.h;
+    ctx.fillStyle = isMax ? '#334155' : (canBuy ? (hov ? '#eab308' : '#facc15') : '#475569'); ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 8); ctx.fill();
+    ctx.fillStyle = isMax ? '#94a3b8' : (canBuy ? '#020617' : '#94a3b8'); ctx.font = 'italic 900 14px system-ui'; ctx.textAlign = 'center'; ctx.fillText(isMax ? 'MAX' : `${item.cost} V`, b.x + b.w / 2, b.y + b.h / 2 + 5);
   }
 
-  let playW = 240; let playH = 80; let playX = canvas.width - playW - 40; let playY = canvas.height - playH - 40; let hoverPlay = mouse.x >= playX && mouse.x <= playX + playW && mouse.y >= playY && mouse.y <= playY + playH;
-  ctx.save(); ctx.translate(playX, playY); ctx.transform(1, 0, -0.15, 1, 0, 0); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(10, 10, playW, playH, 8); ctx.fill(); ctx.shadowBlur = hoverPlay ? 25 : 10; ctx.shadowColor = '#facc15'; let playGrad = ctx.createLinearGradient(0, 0, 0, playH); playGrad.addColorStop(0, hoverPlay ? '#fef08a' : '#fde047'); playGrad.addColorStop(1, hoverPlay ? '#eab308' : '#ca8a04'); ctx.fillStyle = playGrad; ctx.beginPath(); ctx.roundRect(0, 0, playW, playH, 8); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(2, 2, playW - 4, playH - 4, 6); ctx.stroke(); ctx.shadowBlur = 0; ctx.restore();
-  ctx.fillStyle = '#020617'; ctx.textAlign = 'center'; ctx.font = 'italic 900 36px system-ui'; ctx.fillText('JOUER !', playX + playW/2, playY + 52); ctx.textAlign = 'left';
+  // ---- Bouton JOUER (sous les améliorations) ----
+  let pl = L.play, hoverPlay = mouse.x >= pl.x && mouse.x <= pl.x + pl.w && mouse.y >= pl.y && mouse.y <= pl.y + pl.h;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(pl.x + 6, pl.y + 7, pl.w, pl.h, 14); ctx.fill();
+  let playGrad = ctx.createLinearGradient(0, pl.y, 0, pl.y + pl.h); playGrad.addColorStop(0, hoverPlay ? '#fef08a' : '#fde047'); playGrad.addColorStop(1, hoverPlay ? '#eab308' : '#ca8a04');
+  ctx.fillStyle = playGrad; ctx.beginPath(); ctx.roundRect(pl.x, pl.y, pl.w, pl.h, 14); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(pl.x + 3, pl.y + 3, pl.w - 6, pl.h - 6, 11); ctx.stroke();
+  ctx.fillStyle = '#020617'; ctx.textAlign = 'center'; ctx.font = 'italic 900 34px system-ui'; ctx.fillText('JOUER !', pl.x + pl.w / 2, pl.y + pl.h / 2 + 12); ctx.textAlign = 'left';
+
+  // ---- Bouton Admin ----
+  let ad = L.admin; ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(ad.x, ad.y, ad.w, ad.h, 8); ctx.fill();
+  ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 13px system-ui'; ctx.textAlign = 'center'; ctx.fillText('ADMIN', ad.x + ad.w / 2, ad.y + ad.h / 2 + 5); ctx.textAlign = 'left';
+}
+
+// Disposition du lobby : une seule source pour le dessin ET les clics
+function lobbyItems() {
+  return [ { name: 'VITESSE', key: 'speed', cost: Math.floor(250 * Math.pow(1.6, upgrades.speed)), max: 5 }, { name: 'SANTÉ', key: 'hp', cost: Math.floor(300 * Math.pow(1.6, upgrades.hp)), max: 5 }, { name: 'SANTÉ BASE', key: 'baseHP', cost: Math.floor(350 * Math.pow(1.6, upgrades.baseHP)), max: 5 }, { name: 'DÉGÂTS', key: 'damage', cost: Math.floor(400 * Math.pow(1.7, upgrades.damage)), max: 5 }, { name: 'POMPE', key: 'shotgunLevel', cost: Math.floor(800 * Math.pow(2.0, upgrades.shotgunLevel)), max: 3 }, { name: 'ROQUETTES', key: 'rocketLevel', cost: Math.floor(1200 * Math.pow(2.2, upgrades.rocketLevel)), max: 3 } ];
+}
+function lobbyLayout() {
+  let W = canvas.width, H = canvas.height, m = 24, top = 80;
+  let leftW = Math.max(230, Math.min(290, W * 0.22)), rightW = Math.max(320, Math.min(410, W * 0.3));
+  let playH = 72, bottom = H - m;
+  let right = { x: W - m - rightW, y: top, w: rightW, h: bottom - top - playH - 16 };
+  let rowH = Math.max(44, Math.min(62, (right.h - 56 - 12) / 6));
+  right.h = Math.min(right.h, 56 + rowH * 6 + 12);
+  let ups = [];
+  for (let i = 0; i < 6; i++) { let y = right.y + 50 + i * rowH, h = rowH - 8; ups.push({ x: right.x + 12, y, w: right.w - 24, h, btn: { x: right.x + right.w - 12 - 108 - 12, y: y + (h - 34) / 2, w: 108, h: 34 } }); }
+  let play = { x: right.x, y: right.y + right.h + 16, w: right.w, h: playH };
+  let left = { x: m, y: top, w: leftW, h: 3 * 92 + 50 + 70 };
+  let classes = []; for (let i = 0; i < 3; i++) classes.push({ x: left.x + 12, y: left.y + 48 + i * 92, w: left.w - 24, h: 84 });
+  let cx = left.x + left.w + (right.x - left.x - left.w) / 2;
+  let podY = Math.max(290, Math.min(H * 0.55, H - 230));
+  return { left, right, ups, play, classes, podX: cx, podY, admin: { x: m, y: H - m - 36, w: 110, h: 36 } };
 }
 
 let vignetteCache = { key: '', grad: null };
