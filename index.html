@@ -422,7 +422,7 @@ function update() {
 
   for (let i = powerups.length - 1; i >= 0; i--) {
     let p = powerups[i]; p.y += Math.sin(Date.now() * 0.005) * 0.2;
-    if (Math.hypot(player.x - p.x, player.y - p.y) < player.radius + p.radius) { playSound('powerup'); if (p.type === 'heal') { player.hp = Math.min(getPlayerMaxHp(), player.hp + 35); baseCentral.hp = Math.min(baseCentral.maxHp, baseCentral.hp + 50); } else if (p.type === 'shield') player.shieldTimer = 300; powerups.splice(i, 1); }
+    if (Math.hypot(player.x - p.x, player.y - p.y) < player.radius + p.radius) { playSound('powerup'); if (p.type === 'heal') { player.hp = Math.min(getPlayerMaxHp(), player.hp + 35); } else if (p.type === 'shield') player.shieldTimer = 300; powerups.splice(i, 1); }
   }
 
   for (let i = bullets.length - 1; i >= 0; i--) {
@@ -542,7 +542,7 @@ function update() {
         if (!enemies.includes(e)) break;
         if (e.hp <= 0) {
           if (runPerks.vampirism > 0 && Math.random() < (runPerks.vampirism * 0.15)) { player.hp = Math.min(getPlayerMaxHp(), player.hp + 1.5); }
-          if (Math.random() < 0.25 || e.isBoss) { powerups.push({ x: e.x, y: e.y, radius: 10, type: Math.random() < 0.5 ? 'heal' : 'shield' }); }
+          if (Math.random() < 0.07 || e.isBoss) { powerups.push({ x: e.x, y: e.y, radius: 10, type: Math.random() < 0.5 ? 'heal' : 'shield' }); }
           if (e.isBoss) activeBoss = null; spawnParticles(e.x, e.y, e.dim === 3 ? '#ea580c' : (e.dim===2?'#a855f7':'#b91c1c'), 25, 7);
           // CORRECTIF : on supprime l'ennemi par référence, pas par un index qui a pu changer
           enemies.splice(enemies.indexOf(e), 1); addKillToCombo(); runStats.kills++;
