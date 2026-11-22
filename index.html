@@ -2,17 +2,26 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>Survival Battle</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20128%20128%22%3E%20%3Cdefs%3E%20%3CradialGradient%20id=%22bg%22%20cx=%2250%25%22%20cy=%2235%25%22%20r=%2280%25%22%3E%3Cstop%20offset=%220%22%20stop-color=%22%235b21b6%22/%3E%3Cstop%20offset=%220.55%22%20stop-color=%22%231e1b4b%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22%23020617%22/%3E%3C/radialGradient%3E%20%3ClinearGradient%20id=%22gold%22%20x1=%220%22%20y1=%220%22%20x2=%220%22%20y2=%221%22%3E%3Cstop%20offset=%220%22%20stop-color=%22%23fff7c2%22/%3E%3Cstop%20offset=%220.45%22%20stop-color=%22%23fbbf24%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22%23b45309%22/%3E%3C/linearGradient%3E%20%3ClinearGradient%20id=%22red%22%20x1=%220%22%20y1=%220%22%20x2=%220%22%20y2=%221%22%3E%3Cstop%20offset=%220%22%20stop-color=%22%23fecaca%22/%3E%3Cstop%20offset=%220.5%22%20stop-color=%22%23ef4444%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22%237f1d1d%22/%3E%3C/linearGradient%3E%20%3C/defs%3E%20%3Crect%20width=%22128%22%20height=%22128%22%20rx=%2228%22%20fill=%22url(%23bg)%22/%3E%20%3Crect%20x=%224%22%20y=%224%22%20width=%22120%22%20height=%22120%22%20rx=%2225%22%20fill=%22none%22%20stroke=%22%2338bdf8%22%20stroke-opacity=%220.55%22%20stroke-width=%223%22/%3E%20%20%3Cpath%20d=%22M64%2012%20L108%2036%20L108%2084%20L64%20116%20L20%2084%20L20%2036%20Z%22%20fill=%22%230b1020%22%20stroke=%22url(%23gold)%22%20stroke-width=%227%22%20stroke-linejoin=%22round%22/%3E%20%3Cpath%20d=%22M64%2024%20L98%2042%20L98%2080%20L64%20104%20L30%2080%20L30%2042%20Z%22%20fill=%22%232e1065%22%20stroke=%22%23a855f7%22%20stroke-width=%222.5%22%20stroke-linejoin=%22round%22/%3E%20%20%3Ccircle%20cx=%2264%22%20cy=%2262%22%20r=%2224%22%20fill=%22none%22%20stroke=%22url(%23red)%22%20stroke-width=%226%22/%3E%20%3Cpath%20d=%22M64%2028v16M64%2080v16M30%2062h16M82%2062h16%22%20stroke=%22url(%23gold)%22%20stroke-width=%226%22%20stroke-linecap=%22round%22/%3E%20%20%3Cpath%20d=%22M70%2044%20L54%2066%20H64%20L58%2082%20L76%2058%20H65%20Z%22%20fill=%22url(%23gold)%22%20stroke=%22%230b1020%22%20stroke-width=%222.5%22%20stroke-linejoin=%22round%22/%3E%20%3Ccircle%20cx=%2264%22%20cy=%2262%22%20r=%223%22%20fill=%22%23fff%22%20opacity=%220.0%22/%3E%20%3C/svg%3E">
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20128%20128%22%3E%20%3Cdefs%3E%20%3CradialGradient%20id=%22bg%22%20cx=%2250%25%22%20cy=%2235%25%22%20r=%2280%25%22%3E%3Cstop%20offset=%220%22%20stop-color=%22%235b21b6%22/%3E%3Cstop%20offset=%220.55%22%20stop-color=%22%231e1b4b%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22%23020617%22/%3E%3C/radialGradient%3E%20%3ClinearGradient%20id=%22gold%22%20x1=%220%22%20y1=%220%22%20x2=%220%22%20y2=%221%22%3E%3Cstop%20offset=%220%22%20stop-color=%22%23fff7c2%22/%3E%3Cstop%20offset=%220.45%22%20stop-color=%22%23fbbf24%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22%23b45309%22/%3E%3C/linearGradient%3E%20%3ClinearGradient%20id=%22red%22%20x1=%220%22%20y1=%220%22%20x2=%220%22%20y2=%221%22%3E%3Cstop%20offset=%220%22%20stop-color=%22%23fecaca%22/%3E%3Cstop%20offset=%220.5%22%20stop-color=%22%23ef4444%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22%237f1d1d%22/%3E%3C/linearGradient%3E%20%3C/defs%3E%20%3Crect%20width=%22128%22%20height=%22128%22%20rx=%2228%22%20fill=%22url(%23bg)%22/%3E%20%3Crect%20x=%224%22%20y=%224%22%20width=%22120%22%20height=%22120%22%20rx=%2225%22%20fill=%22none%22%20stroke=%22%2338bdf8%22%20stroke-opacity=%220.55%22%20stroke-width=%223%22/%3E%20%20%3Cpath%20d=%22M64%2012%20L108%2036%20L108%2084%20L64%20116%20L20%2084%20L20%2036%20Z%22%20fill=%22%230b1020%22%20stroke=%22url(%23gold)%22%20stroke-width=%227%22%20stroke-linejoin=%22round%22/%3E%20%3Cpath%20d=%22M64%2024%20L98%2042%20L98%2080%20L64%20104%20L30%2080%20L30%2042%20Z%22%20fill=%22%232e1065%22%20stroke=%22%23a855f7%22%20stroke-width=%222.5%22%20stroke-linejoin=%22round%22/%3E%20%20%3Ccircle%20cx=%2264%22%20cy=%2262%22%20r=%2224%22%20fill=%22none%22%20stroke=%22url(%23red)%22%20stroke-width=%226%22/%3E%20%3Cpath%20d=%22M64%2028v16M64%2080v16M30%2062h16M82%2062h16%22%20stroke=%22url(%23gold)%22%20stroke-width=%226%22%20stroke-linecap=%22round%22/%3E%20%20%3Cpath%20d=%22M70%2044%20L54%2066%20H64%20L58%2082%20L76%2058%20H65%20Z%22%20fill=%22url(%23gold)%22%20stroke=%22%230b1020%22%20stroke-width=%222.5%22%20stroke-linejoin=%22round%22/%3E%20%3Ccircle%20cx=%2264%22%20cy=%2262%22%20r=%223%22%20fill=%22%23fff%22%20opacity=%220.0%22/%3E%20%3C/svg%3E">
 <meta name="theme-color" content="#1e1b4b">
 <style>
   html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #020617; font-family: system-ui, -apple-system, sans-serif; user-select: none; }
-  canvas { display: block; cursor: crosshair; }
+  canvas { display: block; cursor: crosshair; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+  html, body { overscroll-behavior: none; }
+  #rotateMsg { display: none; position: fixed; inset: 0; z-index: 10000; background: radial-gradient(circle at 50% 40%, #312e81, #020617 75%); color: #f8fafc; text-align: center; flex-direction: column; align-items: center; justify-content: center; font-family: system-ui, sans-serif; padding: 24px; }
+  #rotateMsg .ph { font-size: 64px; display: inline-block; animation: rot 2s ease-in-out infinite; }
+  @keyframes rot { 0%, 20% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+  @media (orientation: portrait) and (pointer: coarse) { #rotateMsg { display: flex; } }
 </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
+<div id="rotateMsg"><div class="ph">📱</div><div style="font:italic 900 26px system-ui;margin-top:18px;color:#facc15">TOURNEZ VOTRE TÉLÉPHONE</div><div style="margin-top:8px;color:#94a3b8;font-size:15px">Survival Battle se joue en mode paysage.</div></div>
 <script>
 // --- CORRECTIF DE COMPATIBILITÉ (ANTI ÉCRAN NOIR) ---
 if (!CanvasRenderingContext2D.prototype.roundRect) {
@@ -24,7 +33,13 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
 
 const canvas = document.getElementById('gameCanvas');
 let ctx = canvas.getContext('2d');
-function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+// Sur téléphone, on dessine sur une surface plus grande (>= 700 px de haut) puis on l'adapte à l'écran :
+// l'interface et le monde gardent les mêmes proportions que sur ordinateur.
+function resizeCanvas() {
+  let iw = window.innerWidth, ih = window.innerHeight, sc = isTouch ? Math.max(1, 700 / ih) : 1;
+  canvas.width = Math.round(iw * sc); canvas.height = Math.round(ih * sc); canvas.style.width = iw + 'px'; canvas.style.height = ih + 'px';
+}
 resizeCanvas(); window.addEventListener('resize', resizeCanvas);
 
 // --- VARIABLES GLOBALES ET ETATS ---
@@ -176,9 +191,7 @@ window.addEventListener('keydown', e => {
   if (e.code === 'Escape' && (gameState === 'playing' || gameState === 'paused' || gameState === 'admin_sandbox')) {
     gameState = (gameState === 'paused') ? (currentDimension===4?'admin_sandbox':'playing') : 'paused';
   }
-  if (e.code === 'Space' && (gameState === 'playing'||gameState === 'admin_sandbox') && player.dashCooldown <= 0 && !player.isDashing) {
-    player.isDashing = true; player.dashTimer = 15; player.dashCooldown = CLASSES[player.color].dash; spawnParticles(player.x, player.y, '#38bdf8', 15, 5);
-  }
+  if (e.code === 'Space') doDash();
   if ((gameState === 'playing' || gameState === 'admin_sandbox') && ['1','2','3'].includes(e.key)) {
     let id = ['pistol', 'shotgun', 'rocket'][+e.key - 1], owned = id === 'pistol' || gameState === 'admin_sandbox' || (id === 'shotgun' ? upgrades.shotgunLevel : upgrades.rocketLevel) > 0;
     if (owned) player.currentWeapon = id;
@@ -190,14 +203,16 @@ window.addEventListener('keydown', e => {
   // CORRECTIF : la touche de triche "P" (saut à la dernière vague) a été retirée du jeu normal.
 });
 window.addEventListener('keyup', e => { if(e.key) keys[e.key.toLowerCase()] = false; });
-window.addEventListener('mousemove', e => { const r = canvas.getBoundingClientRect(); mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top; });
+window.addEventListener('mousemove', e => { let c = toCanvasXY(e.clientX, e.clientY); mouse.x = c.x; mouse.y = c.y; });
 window.addEventListener('mousedown', e => {
-  initAudio(); const r = canvas.getBoundingClientRect(); let mx = e.clientX - r.left; let my = e.clientY - r.top;
+  initAudio(); { let c = toCanvasXY(e.clientX, e.clientY); var mx = c.x, my = c.y; mouse.x = mx; mouse.y = my; }
+  if (isTouch && gameState === 'playing' && touch.used) return; // en jeu, ce sont les commandes tactiles qui gèrent
 
   if (gameState === 'lobby') {
     let L = lobbyLayout(), hit = (r) => mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h;
     if (hit(L.dimBtn)) { gameState = 'dimselect'; return; }
-    if (hit(L.play)) { let sd = dimUnlocked(startDim) ? startDim : 1; startLoading(1400, () => { gameState = 'playing'; resetGame(); if (sd > 1) enterDimension(sd); }, `DIMENSION ${sd} · ${DIMS[sd - 1].n}`, 'Préparation du champ de bataille'); return; }
+    if (hit(L.play)) { let sd = dimUnlocked(startDim) ? startDim : 1; if (isTouch) { try { if (!document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) {} }).catch(() => {}); } catch (e) {} }
+    startLoading(1400, () => { gameState = 'playing'; resetGame(); if (sd > 1) enterDimension(sd); }, `DIMENSION ${sd} · ${DIMS[sd - 1].n}`, 'Préparation du champ de bataille'); return; }
     let skinColors = ['#4ade80', '#f87171', '#22d3ee'];
     for (let i = 0; i < 3; i++) if (hit(L.classes[i])) setClass(skinColors[i]);
     if (hit(L.arrows[0])) cycleClass(-1); if (hit(L.arrows[1])) cycleClass(1);
@@ -247,6 +262,70 @@ function rewardLayout() {
   return { cards, titleY: Math.max(70, top - 90) };
 }
 function pickReward(i) { if (gameState !== 'reward' || !currentRewards[i]) return; applyReward(currentRewards[i].id); currentWave++; setupWave(); gameState = 'playing'; }
+// ===== VERSION TÉLÉPHONE : commandes tactiles =====
+const touch = { joy: { id: null, ox: 0, oy: 0, x: 0, y: 0, dx: 0, dy: 0 }, aim: { id: null, ox: 0, oy: 0, x: 0, y: 0, dx: 0, dy: 0, t: 0 }, used: false };
+const STICK_R = 70;
+function toCanvasXY(cx, cy) { let r = canvas.getBoundingClientRect(); return { x: (cx - r.left) * canvas.width / r.width, y: (cy - r.top) * canvas.height / r.height }; }
+function doDash() { if ((gameState === 'playing' || gameState === 'admin_sandbox') && player.dashCooldown <= 0 && !player.isDashing) { player.isDashing = true; player.dashTimer = 15; player.dashCooldown = CLASSES[player.color].dash; spawnParticles(player.x, player.y, '#38bdf8', 15, 5); } }
+function selectWeapon(i) { let id = ['pistol', 'shotgun', 'rocket'][i], owned = id === 'pistol' || gameState === 'admin_sandbox' || (id === 'shotgun' ? upgrades.shotgunLevel : upgrades.rocketLevel) > 0; if (owned) player.currentWeapon = id; }
+function touchButtons() { let W = canvas.width, H = canvas.height; return { dash: { x: W - 90, y: H - 190, r: 46 }, pause: { x: W - 215, y: 40, r: 26 } }; }
+function touchPlaying() { return gameState === 'playing' || gameState === 'admin_sandbox'; }
+function onTouchStart(e) {
+  initAudio(); if (!touchPlaying()) return;
+  let W = canvas.width, H = canvas.height, B = touchButtons(), sandbox = gameState === 'admin_sandbox'; let handled = false;
+  for (let t of e.changedTouches) {
+    let p = toCanvasXY(t.clientX, t.clientY); touch.used = true;
+    if (sandbox && p.x >= W - 264) continue;                                   // menu admin : clic normal
+    if (Math.hypot(p.x - B.pause.x, p.y - B.pause.y) < B.pause.r + 14) { gameState = 'paused'; handled = true; continue; }
+    if (!sandbox && Math.hypot(p.x - B.dash.x, p.y - B.dash.y) < B.dash.r + 18) { doDash(); handled = true; continue; }
+    // cases d'armes (bas gauche)
+    let by = H - 86, wi = -1; for (let i = 0; i < 3; i++) if (p.x >= 16 + i * 80 && p.x <= 16 + i * 80 + 72 && p.y >= by && p.y <= by + 70) wi = i;
+    if (wi >= 0) { selectWeapon(wi); handled = true; continue; }
+    if (p.x >= 16 + 240 - 8 && p.x <= 16 + 240 + 70 && p.y >= by && p.y <= by + 70) { doDash(); handled = true; continue; }
+    if (p.x < W * (sandbox ? 0.35 : 0.5)) { if (touch.joy.id === null) { touch.joy = { id: t.identifier, ox: p.x, oy: p.y, x: p.x, y: p.y, dx: 0, dy: 0 }; handled = true; } }
+    else if (!sandbox && touch.aim.id === null) { touch.aim = { id: t.identifier, ox: p.x, oy: p.y, x: p.x, y: p.y, dx: 0, dy: 0, t: 0 }; handled = true; }
+  }
+  if (handled) e.preventDefault();
+}
+function onTouchMove(e) {
+  if (!touchPlaying()) return; let any = false;
+  for (let t of e.changedTouches) {
+    let p = toCanvasXY(t.clientX, t.clientY);
+    for (let s of [touch.joy, touch.aim]) if (s.id === t.identifier) { let dx = p.x - s.ox, dy = p.y - s.oy, d = Math.hypot(dx, dy); if (d > STICK_R) { s.ox += dx / d * (d - STICK_R); s.oy += dy / d * (d - STICK_R); dx = p.x - s.ox; dy = p.y - s.oy; d = Math.hypot(dx, dy); } s.x = p.x; s.y = p.y; s.dx = dx / STICK_R; s.dy = dy / STICK_R; any = true; }
+  }
+  if (any) e.preventDefault();
+}
+function onTouchEnd(e) {
+  for (let t of e.changedTouches) { if (touch.joy.id === t.identifier) touch.joy = { id: null, ox: 0, oy: 0, x: 0, y: 0, dx: 0, dy: 0 }; if (touch.aim.id === t.identifier) touch.aim = { id: null, ox: 0, oy: 0, x: 0, y: 0, dx: 0, dy: 0, t: 0 }; }
+  if (touchPlaying()) e.preventDefault();
+}
+canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+canvas.addEventListener('touchend', onTouchEnd, { passive: false });
+canvas.addEventListener('touchcancel', onTouchEnd, { passive: false });
+window.addEventListener('contextmenu', e => e.preventDefault());
+// appelé à chaque pas de jeu : visée automatique du tir quand le pouce est posé sur la droite
+function touchUpdate() {
+  if (touch.joy.id === null && touch.aim.id === null) return;
+  if (touch.aim.id !== null) {
+    let m = Math.hypot(touch.aim.dx, touch.aim.dy);
+    if (m > 0.2) {
+      mouse.x = player.x + touch.aim.dx / m * 320; mouse.y = player.y + touch.aim.dy / m * 320;
+      touch.aim.t++; let rate = player.currentWeapon === 'shotgun' ? 32 : (player.currentWeapon === 'rocket' ? 48 : 13);
+      if (touch.aim.t % rate === 1) shoot();
+    }
+  }
+}
+function drawTouchControls() {
+  if (!isTouch || !touchPlaying()) return; let B = touchButtons(), sandbox = gameState === 'admin_sandbox', ready = player.dashCooldown <= 0;
+  const stick = (s, col) => { let ox = s.ox, oy = s.oy; ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.beginPath(); ctx.arc(ox, oy, STICK_R, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.globalAlpha = 0.6; ctx.stroke(); ctx.globalAlpha = 1; ctx.fillStyle = col; ctx.globalAlpha = 0.75; ctx.beginPath(); ctx.arc(s.x, s.y, 30, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; };
+  if (touch.joy.id !== null) stick(touch.joy, '#38bdf8'); if (touch.aim.id !== null) stick(touch.aim, '#f87171');
+  if (touch.joy.id === null) { ctx.globalAlpha = 0.35; ctx.fillStyle = '#38bdf8'; ctx.font = 'bold 13px system-ui'; ctx.textAlign = 'center'; ctx.fillText('DÉPLACEMENT', canvas.width * 0.14, canvas.height - 120); ctx.fillText(sandbox ? '' : 'VISER / TIRER', canvas.width * 0.72, canvas.height - 120); ctx.globalAlpha = 1; ctx.textAlign = 'left'; }
+  // pause
+  ctx.fillStyle = 'rgba(8,12,28,0.85)'; ctx.beginPath(); ctx.arc(B.pause.x, B.pause.y, B.pause.r, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#fff'; ctx.fillRect(B.pause.x - 8, B.pause.y - 9, 6, 18); ctx.fillRect(B.pause.x + 2, B.pause.y - 9, 6, 18);
+  // esquive
+  if (!sandbox) { let b = B.dash, col = ready ? '#4ade80' : '#64748b'; ctx.fillStyle = 'rgba(8,12,28,0.8)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(b.x, b.y, b.r - 3, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (ready ? 1 : 1 - player.dashCooldown / (CLASSES[player.color].dash || 60))); ctx.stroke(); ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(b.x + 5, b.y - 20); ctx.lineTo(b.x - 11, b.y + 3); ctx.lineTo(b.x - 1, b.y + 3); ctx.lineTo(b.x - 6, b.y + 20); ctx.lineTo(b.x + 12, b.y - 5); ctx.lineTo(b.x + 2, b.y - 5); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#cbd5e1'; ctx.font = 'bold 10px system-ui'; ctx.textAlign = 'center'; ctx.fillText('ESQUIVE', b.x, b.y + b.r + 14); ctx.textAlign = 'left'; }
+}
 function pauseLayout() {
   let W = canvas.width, H = canvas.height, cw = 440, ch = 496, cx = W / 2 - cw / 2, cy = Math.max(10, H / 2 - ch / 2);
   return { card: { x: cx, y: cy, w: cw, h: ch }, resume: { x: cx + 30, y: cy + 300, w: cw - 60, h: 54 }, sound: { x: cx + 30, y: cy + 364, w: cw - 60, h: 40 }, quit: { x: cx + 30, y: cy + 412, w: cw - 60, h: 40 } };
@@ -542,6 +621,8 @@ function update() {
   if (keys['s'] || keys['arrowdown']) { nextY += currentSpeed; isMoving = true; }
   if (keys['q'] || keys['arrowleft'] || keys['a']) { nextX -= currentSpeed; isMoving = true; }
   if (keys['d'] || keys['arrowright']) { nextX += currentSpeed; isMoving = true; }
+  if (touch.joy.id !== null) { let jm = Math.hypot(touch.joy.dx, touch.joy.dy); if (jm > 0.15) { nextX += touch.joy.dx / Math.max(1, jm) * currentSpeed; nextY += touch.joy.dy / Math.max(1, jm) * currentSpeed; isMoving = true; } }
+  touchUpdate();
   nextX = Math.max(player.radius, Math.min(canvas.width - player.radius, nextX)); nextY = Math.max(player.radius, Math.min(canvas.height - player.radius, nextY));
   if(isMoving && !player.isDashing) { if(!player.walkCycle) player.walkCycle = 0; player.walkCycle += 0.2; } else { player.walkCycle = 0; }
 
@@ -2564,6 +2645,7 @@ function draw() {
       ctx.fillText(`${bossName} ${activeBoss.phase2?'[ENRAGÉ] ':''}(${Math.ceil(activeBoss.hp)}/${activeBoss.maxHp})`, midX, barY + 15); ctx.shadowBlur = 0; ctx.textAlign = 'left';
     }
 
+    drawTouchControls();
     if (gameState === 'admin_sandbox' || (gameState === 'paused' && currentDimension === 4)) { drawAdminHUD(); } else { drawHUD(); drawMinimap(); }
 
     if (dimFlashAlpha > 0) {
