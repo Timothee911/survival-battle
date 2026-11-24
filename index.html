@@ -263,13 +263,16 @@ function rewardLayout() {
 }
 function pickReward(i) { if (gameState !== 'reward' || !currentRewards[i]) return; applyReward(currentRewards[i].id); currentWave++; setupWave(); gameState = 'playing'; }
 // ===== VERSION TÉLÉPHONE : commandes tactiles =====
-const touch = { joy: { id: null, ox: 0, oy: 0, x: 0, y: 0, dx: 0, dy: 0 }, aim: { id: null, ox: 0, oy: 0, x: 0, y: 0, dx: 0, dy: 0, t: 0 }, used: false };
-const STICK_R = 70;
+// Joystick de déplacement FIXE (toujours affiché, en bas à gauche). Un appui n'importe où ailleurs sur l'écran = tir vers ce point
+// (on peut rester appuyé : le tir se répète et suit le doigt).
+const touch = { joy: { id: null, x: 0, y: 0, dx: 0, dy: 0 }, aim: { id: null, x: 0, y: 0, t: 0 }, used: false };
+const STICK_R = 80;
 function toCanvasXY(cx, cy) { let r = canvas.getBoundingClientRect(); return { x: (cx - r.left) * canvas.width / r.width, y: (cy - r.top) * canvas.height / r.height }; }
 function doDash() { if ((gameState === 'playing' || gameState === 'admin_sandbox') && player.dashCooldown <= 0 && !player.isDashing) { player.isDashing = true; player.dashTimer = 15; player.dashCooldown = CLASSES[player.color].dash; spawnParticles(player.x, player.y, '#38bdf8', 15, 5); } }
 function selectWeapon(i) { let id = ['pistol', 'shotgun', 'rocket'][i], owned = id === 'pistol' || gameState === 'admin_sandbox' || (id === 'shotgun' ? upgrades.shotgunLevel : upgrades.rocketLevel) > 0; if (owned) player.currentWeapon = id; }
-function touchButtons() { let W = canvas.width, H = canvas.height; return { dash: { x: W - 90, y: H - 190, r: 46 }, pause: { x: W - 215, y: 40, r: 26 } }; }
+function touchButtons() { let W = canvas.width, H = canvas.height; return { dash: { x: W - 90, y: H - 190, r: 46 }, pause: { x: W - 215, y: 40, r: 26 }, joy: { x: 190, y: H - 215, r: STICK_R } }; }
 function touchPlaying() { return gameState === 'playing' || gameState === 'admin_sandbox'; }
+function fireTouch() { shoot(); }
 function onTouchStart(e) {
   initAudio(); if (!touchPlaying()) return;
   let W = canvas.width, H = canvas.height, B = touchButtons(), sandbox = gameState === 'admin_sandbox'; let handled = false;
@@ -278,25 +281,28 @@ function onTouchStart(e) {
     if (sandbox && p.x >= W - 264) continue;                                   // menu admin : clic normal
     if (Math.hypot(p.x - B.pause.x, p.y - B.pause.y) < B.pause.r + 14) { gameState = 'paused'; handled = true; continue; }
     if (!sandbox && Math.hypot(p.x - B.dash.x, p.y - B.dash.y) < B.dash.r + 18) { doDash(); handled = true; continue; }
-    // cases d'armes (bas gauche)
     let by = H - 86, wi = -1; for (let i = 0; i < 3; i++) if (p.x >= 16 + i * 80 && p.x <= 16 + i * 80 + 72 && p.y >= by && p.y <= by + 70) wi = i;
     if (wi >= 0) { selectWeapon(wi); handled = true; continue; }
     if (p.x >= 16 + 240 - 8 && p.x <= 16 + 240 + 70 && p.y >= by && p.y <= by + 70) { doDash(); handled = true; continue; }
-    if (p.x < W * (sandbox ? 0.35 : 0.5)) { if (touch.joy.id === null) { touch.joy = { id: t.identifier, ox: p.x, oy: p.y, x: p.x, y: p.y, dx: 0, dy: 0 }; handled = true; } }
-    else if (!sandbox && touch.aim.id === null) { touch.aim = { id: t.identifier, ox: p.x, oy: p.y, x: p.x, y: p.y, dx: 0, dy: 0, t: 0 }; handled = true; }
+    // joystick fixe : zone d'accroche généreuse autour de la base
+    if (touch.joy.id === null && Math.hypot(p.x - B.joy.x, p.y - B.joy.y) < B.joy.r * 1.9) { touch.joy = { id: t.identifier, x: p.x, y: p.y, dx: 0, dy: 0 }; moveStick(touch.joy, p); handled = true; continue; }
+    if (sandbox) continue;                                                      // bac à sable : un appui sur la carte = clic normal
+    if (touch.aim.id === null) { touch.aim = { id: t.identifier, x: p.x, y: p.y, t: 0 }; mouse.x = p.x; mouse.y = p.y; fireTouch(); handled = true; }
   }
   if (handled) e.preventDefault();
 }
+function moveStick(s, p) { let B = touchButtons(), dx = p.x - B.joy.x, dy = p.y - B.joy.y, d = Math.hypot(dx, dy); if (d > STICK_R) { dx = dx / d * STICK_R; dy = dy / d * STICK_R; } s.x = B.joy.x + dx; s.y = B.joy.y + dy; s.dx = dx / STICK_R; s.dy = dy / STICK_R; }
 function onTouchMove(e) {
   if (!touchPlaying()) return; let any = false;
   for (let t of e.changedTouches) {
     let p = toCanvasXY(t.clientX, t.clientY);
-    for (let s of [touch.joy, touch.aim]) if (s.id === t.identifier) { let dx = p.x - s.ox, dy = p.y - s.oy, d = Math.hypot(dx, dy); if (d > STICK_R) { s.ox += dx / d * (d - STICK_R); s.oy += dy / d * (d - STICK_R); dx = p.x - s.ox; dy = p.y - s.oy; d = Math.hypot(dx, dy); } s.x = p.x; s.y = p.y; s.dx = dx / STICK_R; s.dy = dy / STICK_R; any = true; }
+    if (touch.joy.id === t.identifier) { moveStick(touch.joy, p); any = true; }
+    if (touch.aim.id === t.identifier) { touch.aim.x = p.x; touch.aim.y = p.y; mouse.x = p.x; mouse.y = p.y; any = true; }
   }
   if (any) e.preventDefault();
 }
 function onTouchEnd(e) {
-  for (let t of e.changedTouches) { if (touch.joy.id === t.identifier) touch.joy = { id: null, ox: 0, oy: 0, x: 0, y: 0, dx: 0, dy: 0 }; if (touch.aim.id === t.identifier) touch.aim = { id: null, ox: 0, oy: 0, x: 0, y: 0, dx: 0, dy: 0, t: 0 }; }
+  for (let t of e.changedTouches) { if (touch.joy.id === t.identifier) touch.joy = { id: null, x: 0, y: 0, dx: 0, dy: 0 }; if (touch.aim.id === t.identifier) touch.aim = { id: null, x: 0, y: 0, t: 0 }; }
   if (touchPlaying()) e.preventDefault();
 }
 canvas.addEventListener('touchstart', onTouchStart, { passive: false });
@@ -304,23 +310,25 @@ canvas.addEventListener('touchmove', onTouchMove, { passive: false });
 canvas.addEventListener('touchend', onTouchEnd, { passive: false });
 canvas.addEventListener('touchcancel', onTouchEnd, { passive: false });
 window.addEventListener('contextmenu', e => e.preventDefault());
-// appelé à chaque pas de jeu : visée automatique du tir quand le pouce est posé sur la droite
+// à chaque pas de jeu : tir répété tant que le doigt reste appuyé (la visée suit le doigt)
 function touchUpdate() {
-  if (touch.joy.id === null && touch.aim.id === null) return;
-  if (touch.aim.id !== null) {
-    let m = Math.hypot(touch.aim.dx, touch.aim.dy);
-    if (m > 0.2) {
-      mouse.x = player.x + touch.aim.dx / m * 320; mouse.y = player.y + touch.aim.dy / m * 320;
-      touch.aim.t++; let rate = player.currentWeapon === 'shotgun' ? 32 : (player.currentWeapon === 'rocket' ? 48 : 13);
-      if (touch.aim.t % rate === 1) shoot();
-    }
-  }
+  if (touch.aim.id === null) return;
+  mouse.x = touch.aim.x; mouse.y = touch.aim.y; touch.aim.t++;
+  let rate = player.currentWeapon === 'shotgun' ? 32 : (player.currentWeapon === 'rocket' ? 48 : 13);
+  if (touch.aim.t % rate === 0) fireTouch();
 }
 function drawTouchControls() {
-  if (!isTouch || !touchPlaying()) return; let B = touchButtons(), sandbox = gameState === 'admin_sandbox', ready = player.dashCooldown <= 0;
-  const stick = (s, col) => { let ox = s.ox, oy = s.oy; ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.beginPath(); ctx.arc(ox, oy, STICK_R, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.globalAlpha = 0.6; ctx.stroke(); ctx.globalAlpha = 1; ctx.fillStyle = col; ctx.globalAlpha = 0.75; ctx.beginPath(); ctx.arc(s.x, s.y, 30, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; };
-  if (touch.joy.id !== null) stick(touch.joy, '#38bdf8'); if (touch.aim.id !== null) stick(touch.aim, '#f87171');
-  if (touch.joy.id === null) { ctx.globalAlpha = 0.35; ctx.fillStyle = '#38bdf8'; ctx.font = 'bold 13px system-ui'; ctx.textAlign = 'center'; ctx.fillText('DÉPLACEMENT', canvas.width * 0.14, canvas.height - 120); ctx.fillText(sandbox ? '' : 'VISER / TIRER', canvas.width * 0.72, canvas.height - 120); ctx.globalAlpha = 1; ctx.textAlign = 'left'; }
+  if (!isTouch || !touchPlaying()) return; let B = touchButtons(), sandbox = gameState === 'admin_sandbox', ready = player.dashCooldown <= 0, active = touch.joy.id !== null;
+  // joystick fixe toujours visible
+  ctx.fillStyle = active ? 'rgba(56,189,248,0.16)' : 'rgba(255,255,255,0.08)'; ctx.beginPath(); ctx.arc(B.joy.x, B.joy.y, B.joy.r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 3; ctx.globalAlpha = active ? 0.9 : 0.55; ctx.stroke();
+  ctx.lineWidth = 2; for (let k = 0; k < 4; k++) { let a = k * Math.PI / 2; ctx.beginPath(); ctx.moveTo(B.joy.x + Math.cos(a) * (B.joy.r - 22), B.joy.y + Math.sin(a) * (B.joy.r - 22)); ctx.lineTo(B.joy.x + Math.cos(a) * (B.joy.r - 8), B.joy.y + Math.sin(a) * (B.joy.r - 8)); ctx.stroke(); }
+  ctx.globalAlpha = 1; let kx = active ? touch.joy.x : B.joy.x, ky = active ? touch.joy.y : B.joy.y;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.arc(kx + 2, ky + 3, 34, 0, Math.PI * 2); ctx.fill();
+  let kg = ctx.createRadialGradient(kx - 8, ky - 8, 3, kx, ky, 34); kg.addColorStop(0, '#bae6fd'); kg.addColorStop(1, '#0284c7'); ctx.globalAlpha = active ? 0.95 : 0.7; ctx.fillStyle = kg; ctx.beginPath(); ctx.arc(kx, ky, 32, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#0b1020'; ctx.lineWidth = 2.5; ctx.stroke(); ctx.globalAlpha = 1;
+  ctx.fillStyle = 'rgba(203,213,225,0.7)'; ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center'; ctx.fillText('DÉPLACEMENT', B.joy.x, B.joy.y + B.joy.r + 18); ctx.textAlign = 'left';
+  // viseur à l'endroit touché
+  if (touch.aim.id !== null) { let ax = touch.aim.x, ay = touch.aim.y; ctx.strokeStyle = '#f87171'; ctx.lineWidth = 3; ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.arc(ax, ay, 22, 0, Math.PI * 2); ctx.moveTo(ax - 32, ay); ctx.lineTo(ax - 12, ay); ctx.moveTo(ax + 12, ay); ctx.lineTo(ax + 32, ay); ctx.moveTo(ax, ay - 32); ctx.lineTo(ax, ay - 12); ctx.moveTo(ax, ay + 12); ctx.lineTo(ax, ay + 32); ctx.stroke(); ctx.globalAlpha = 1; }
   // pause
   ctx.fillStyle = 'rgba(8,12,28,0.85)'; ctx.beginPath(); ctx.arc(B.pause.x, B.pause.y, B.pause.r, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#fff'; ctx.fillRect(B.pause.x - 8, B.pause.y - 9, 6, 18); ctx.fillRect(B.pause.x + 2, B.pause.y - 9, 6, 18);
   // esquive
