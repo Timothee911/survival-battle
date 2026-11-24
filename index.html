@@ -31,11 +31,15 @@ let ctx = canvas.getContext('2d');
 const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 // Sur téléphone, on dessine sur une surface plus grande (>= 700 px de haut) puis on l'adapte à l'écran :
 // l'interface et le monde gardent les mêmes proportions que sur ordinateur.
+let rotated = false; // téléphone tenu à la verticale : le jeu est tourné de 90° pour s'afficher quand même en paysage
 function resizeCanvas() {
-  let iw = window.innerWidth, ih = window.innerHeight, sc = isTouch ? Math.max(1, 700 / ih) : 1;
-  canvas.width = Math.round(iw * sc); canvas.height = Math.round(ih * sc); canvas.style.width = iw + 'px'; canvas.style.height = ih + 'px';
+  let iw = window.innerWidth, ih = window.innerHeight; rotated = isTouch && ih > iw;
+  let W = rotated ? ih : iw, H = rotated ? iw : ih, sc = isTouch ? Math.max(1, 700 / H) : 1;
+  canvas.width = Math.round(W * sc); canvas.height = Math.round(H * sc); canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  if (rotated) { canvas.style.position = 'fixed'; canvas.style.left = '0'; canvas.style.top = '0'; canvas.style.transformOrigin = '0 0'; canvas.style.transform = `translateX(${iw}px) rotate(90deg)`; }
+  else { canvas.style.position = ''; canvas.style.left = ''; canvas.style.top = ''; canvas.style.transformOrigin = ''; canvas.style.transform = ''; }
 }
-resizeCanvas(); window.addEventListener('resize', resizeCanvas);
+resizeCanvas(); window.addEventListener('resize', resizeCanvas); window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 150));
 
 // --- VARIABLES GLOBALES ET ETATS ---
 let gameState = 'lobby';
@@ -262,7 +266,16 @@ function pickReward(i) { if (gameState !== 'reward' || !currentRewards[i]) retur
 // (on peut rester appuyé : le tir se répète et suit le doigt).
 const touch = { joy: { id: null, x: 0, y: 0, dx: 0, dy: 0 }, aim: { id: null, x: 0, y: 0, t: 0 }, used: false };
 const STICK_R = 80;
-function toCanvasXY(cx, cy) { let r = canvas.getBoundingClientRect(); return { x: (cx - r.left) * canvas.width / r.width, y: (cy - r.top) * canvas.height / r.height }; }
+function toCanvasXY(cx, cy) {
+  if (rotated) { let iw = window.innerWidth, ih = window.innerHeight; return { x: cy * canvas.width / ih, y: (iw - cx) * canvas.height / iw }; }
+  let r = canvas.getBoundingClientRect(); return { x: (cx - r.left) * canvas.width / r.width, y: (cy - r.top) * canvas.height / r.height };
+}
+// Au premier toucher : plein écran + verrouillage en paysage (sans aucune fenêtre d'autorisation)
+function goLandscape() {
+  if (!isTouch || window.__landscapeTried) return; window.__landscapeTried = true;
+  try { let el = document.documentElement; if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) {} }).catch(() => {}); else if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); } catch (e) {}
+}
+window.addEventListener('touchend', goLandscape, { once: true, passive: true });
 function doDash() { if ((gameState === 'playing' || gameState === 'admin_sandbox') && player.dashCooldown <= 0 && !player.isDashing) { player.isDashing = true; player.dashTimer = 15; player.dashCooldown = CLASSES[player.color].dash; spawnParticles(player.x, player.y, '#38bdf8', 15, 5); } }
 function selectWeapon(i) { let id = ['pistol', 'shotgun', 'rocket'][i], owned = id === 'pistol' || gameState === 'admin_sandbox' || (id === 'shotgun' ? upgrades.shotgunLevel : upgrades.rocketLevel) > 0; if (owned) player.currentWeapon = id; }
 function touchButtons() { let W = canvas.width, H = canvas.height; return { dash: { x: W - 90, y: H - 190, r: 46 }, pause: { x: W - 215, y: 40, r: 26 }, joy: { x: 190, y: H - 215, r: STICK_R } }; }
